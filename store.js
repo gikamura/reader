@@ -1,4 +1,4 @@
-import { saveFavoritesToCache } from './cache.js';
+import { saveFavoritesToCache, loadFavoritesFromCache } from './cache.js';
 import { getInitialState } from './constants.js';
 
 let state = getInitialState();
@@ -81,7 +81,7 @@ function notify() {
  * Inicializa o store com dados do cache.
  */
 export function initializeStore() {
-    const { loadFavoritesFromCache } = await import('./cache.js');
     const favorites = loadFavoritesFromCache();
     store.setFavorites(favorites);
 }
+
