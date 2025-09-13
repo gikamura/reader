@@ -105,7 +105,9 @@ export function renderApp() {
                 .slice(0, 20);
             break;
         case 'library':
-            const filteredLibrary = state.allManga.filter(m => m.title.toLowerCase().includes(state.searchQuery.toLowerCase()));
+            const filteredLibrary = state.allManga
+                .filter(m => m.title.toLowerCase().includes(state.searchQuery.toLowerCase()))
+                .sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
             totalPaginationItems = filteredLibrary.length;
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
             break;
