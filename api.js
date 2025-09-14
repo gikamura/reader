@@ -64,10 +64,13 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             url: chapterUrl,
             title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            imageUrl: preFetchedData.cover_url ? `${PROXIES[0]}${encodeURIComponent(preFetchedData.cover_url)}` : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa'),
+            // Lógica de fallback da capa: usa cover_url primeiro, depois o do gist, depois o placeholder.
+            // O proxy só é usado para o data.cover, que não é um hotlink direto.
+            imageUrl: preFetchedData.cover_url || (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa'),
             author: data.author,
             artist: data.artist,
             genres: data.genres,
+            type: preFetchedData.type || null, // Captura o tipo
             status: data.status,
             chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
             lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
@@ -114,7 +117,8 @@ export async function fetchAndProcessMangaData(updateStatus) {
 
         const preFetchedData = {
             title: mangaSeries.title,
-            cover_url: representativeChapter.cover_url || null
+            cover_url: representativeChapter.cover_url || null,
+            type: representativeChapter.type || null
         };
 
         return processMangaUrl(representativeChapter.url, preFetchedData);
