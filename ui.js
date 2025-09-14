@@ -35,7 +35,7 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- CARD CORRIGIDO (INFO ESQUERDA / CAPA DIREITA) ---
+// --- CARD ATUALIZADO (AUTOR E ARTISTA NA HORIZONTAL) ---
 const createCardHTML = (data, isFavorite) => {
     // Ícones para metadados
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
@@ -52,6 +52,14 @@ const createCardHTML = (data, isFavorite) => {
     <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex" style="height: 14rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="flex flex-grow w-full">
             
+            <div class="w-1/3 flex-shrink-0 relative">
+                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="absolute top-0 left-0 w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
+                <div class="absolute bottom-2 right-2 flex items-center gap-2">
+                     <span class="bg-gray-900/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
+                     <span class="bg-blue-600 text-white font-semibold px-2 py-1 rounded-md text-xs">${type}</span>
+                </div>
+            </div>
+
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <h3 class="text-lg font-bold truncate" title="${data.title}">${data.title}</h3>
                 
@@ -59,7 +67,7 @@ const createCardHTML = (data, isFavorite) => {
                     ${description}
                 </p>
                 
-                <div class="mt-auto pt-3 border-t border-gray-700 text-xs space-y-1.5">
+                <div class="mt-auto pt-3 border-t border-gray-700 text-xs flex items-center space-x-4">
                     <div class="flex items-center gap-2 text-gray-300 truncate" title="Autor: ${author}">
                         ${iconUser}
                         <span class="truncate">${author}</span>
@@ -71,13 +79,6 @@ const createCardHTML = (data, isFavorite) => {
                 </div>
             </div>
 
-            <div class="w-1/3 flex-shrink-0 relative">
-                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="absolute top-0 left-0 w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
-                <div class="absolute bottom-2 right-2 flex items-center gap-2">
-                     <span class="bg-gray-900/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
-                     <span class="bg-blue-600 text-white font-semibold px-2 py-1 rounded-md text-xs">${type}</span>
-                </div>
-            </div>
         </a>
 
         <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
