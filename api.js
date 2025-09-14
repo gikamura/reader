@@ -60,17 +60,23 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
             !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
 
+        // --- LÓGICA DA IMAGEURL CORRIGIDA ---
+        // 1. Prioriza a cover_url (hotlink, sem proxy).
+        // 2. Se não existir, usa a data.cover do gist (com proxy, como fallback).
+        // 3. Se nenhuma existir, usa o placeholder.
+        const imageUrl = preFetchedData.cover_url 
+            ? preFetchedData.cover_url 
+            : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
+
         return {
             url: chapterUrl,
             title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            // Lógica de fallback da capa: usa cover_url primeiro, depois o do gist, depois o placeholder.
-            // O proxy só é usado para o data.cover, que não é um hotlink direto.
-            imageUrl: preFetchedData.cover_url || (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa'),
+            imageUrl: imageUrl, // Usa a variável com a lógica corrigida
             author: data.author,
             artist: data.artist,
             genres: data.genres,
-            type: preFetchedData.type || null, // Captura o tipo
+            type: preFetchedData.type || null,
             status: data.status,
             chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
             lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
@@ -84,8 +90,6 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
 
 /**
  * Orquestra a busca de dados, verificando a versão para usar o cache de forma inteligente.
- * @param {Function} updateStatus - Callback para atualizar a UI com mensagens de status.
- * @returns {Promise<{data: Array, updated: boolean}>} - Um objeto contendo a lista de mangás e um booleano indicando se foi atualizado.
  */
 export async function fetchAndProcessMangaData(updateStatus) {
     updateStatus('Verificando por atualizações...');
