@@ -35,59 +35,44 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- FUNÇÃO createCardHTML TOTALMENTE REESTRUTURADA ---
+// --- FUNÇÃO createCardHTML COM O NOVO LAYOUT "FLUTUANTE" ---
 const createCardHTML = (data, isFavorite) => {
-    const shortDescription = data.description ? (data.description.length > 110 ? data.description.substring(0, 110) + '...' : data.description) : '';
+    // Aumentamos o espaço para a descrição
+    const shortDescription = data.description ? (data.description.length > 150 ? data.description.substring(0, 150) + '...' : data.description) : 'Sem descrição disponível.';
     
     // Gêneros
     const genresHTML = data.genres && data.genres.length > 0 
-        ? `<div class="flex flex-wrap gap-1">${data.genres.slice(0, 3).map(g => `<span class="bg-gray-700 text-blue-300 text-xs font-semibold px-2 py-0.5 rounded-full">${g}</span>`).join('')}</div>` 
+        ? `<div class="flex flex-wrap gap-1.5">${data.genres.slice(0, 2).map(g => `<span class="bg-gray-900/60 text-blue-300 text-[11px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm">${g}</span>`).join('')}</div>` 
         : '';
 
-    // Ícones para reutilização
-    const icons = {
-        type: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>`,
-        status: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`,
-        author: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`,
-        artist: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`,
-        chapters: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h.01a1 1 0 100-2H10zm3 0a1 1 0 000 2h.01a1 1 0 100-2H13z" clip-rule="evenodd" /></svg>`
-    };
-
-    // Gera o HTML para cada metadado condicionalmente
-    const typeHTML = data.type ? `<span class="flex items-center gap-1 font-semibold" title="Tipo">${icons.type} ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
-    const statusHTML = data.status ? `<span class="flex items-center gap-1" title="Status">${icons.status} ${data.status}</span>` : '';
-    const authorHTML = data.author ? `<span class="flex items-center gap-1 truncate" title="Autor: ${data.author}">${icons.author} ${data.author}</span>` : '';
-    const artistHTML = data.artist ? `<span class="flex items-center gap-1 truncate" title="Artista: ${data.artist}">${icons.artist} ${data.artist}</span>` : '';
-    const chaptersHTML = data.chapterCount ? `<span class="flex items-center gap-1" title="Capítulos">${icons.chapters} ${data.chapterCount} Capítulos</span>` : '';
+    // Metadados principais (Tipo e Status)
+    const typeHTML = data.type ? `<span class="font-bold text-white">${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
+    const statusHTML = data.status ? `<span class="text-gray-300">${data.status}</span>` : '';
 
     return `
         <div class="card-wrapper relative">
             <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="card-container relative flex bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl">
-                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="card-image" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
-                <div class="flex flex-col flex-grow p-4 pt-10">
-                    <p class="text-sm text-gray-400 flex-grow overflow-hidden">${shortDescription}</p>
+                
+                <div class="relative card-image">
+                    <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
                     
-                    <div class="mt-auto pt-2 space-y-2 text-xs text-gray-300">
+                    <div class="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/80 to-transparent space-y-1.5">
                         ${genresHTML}
-                        
-                        <div class="flex justify-between items-center pr-2">
+                        <div class="flex justify-between items-baseline text-xs">
                             ${typeHTML}
                             ${statusHTML}
                         </div>
-
-                        <div class="border-t border-gray-700/50 pt-1 space-y-0.5">
-                           ${authorHTML}
-                           ${artistHTML}
-                           ${chaptersHTML}
-                        </div>
                     </div>
                 </div>
-                <div class="absolute top-0 left-0 w-full p-2 bg-gradient-to-t from-transparent to-black/60 rounded-t-lg">
-                    <h3 class="text-lg font-bold truncate text-white" title="${data.title}">${data.title}</h3>
+
+                <div class="flex flex-col flex-grow p-3">
+                    <h3 class="text-base font-bold truncate text-white mb-1.5" title="${data.title}">${data.title}</h3>
+                    <p class="text-sm text-gray-400 flex-grow overflow-hidden">${shortDescription}</p>
                 </div>
+
             </a>
-            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors" data-url="${data.url}" title="Favoritar">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
+                <svg xmlns="http://www.w.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
                 </svg>
             </button>
