@@ -35,51 +35,61 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- CARD FINAL "GLASSMORPHISM" - VISUALMENTE SUPERIOR E INTUITIVO ---
+// --- OPÇÃO 2: CARD INFORMATIVO (COM DESCRIÇÃO) ---
 const createCardHTML = (data, isFavorite) => {
-    const typeHTML = data.type ? `<span class="bg-black/30 text-white text-xs font-medium px-2 py-0.5 rounded-full">${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
-    const chaptersHTML = data.chapterCount ? `<div class="text-xs"><span class="font-semibold">${data.chapterCount}</span> Capítulos</div>` : '';
+    // Ícones para metadados
+    const iconBook = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6z" clip-rule="evenodd" /></svg>`;
+    const iconTag = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a1 1 0 011-1h5a1 1 0 01.707.293l7 7zM6 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>`;
+
+    // Limpa os dados para evitar texto 'null' ou 'undefined'
+    const author = data.author || 'N/A';
+    const artist = data.artist || 'N/A';
+    const chapters = data.chapterCount || 'N/A';
+    const status = data.status || 'N/A';
+    const type = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A';
+    const description = data.description || 'Sem descrição disponível.';
 
     return `
-        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="manga-card relative flex flex-col justify-end group rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl">
-            
-            <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105 -z-10" onerror="this.onerror=null;this.src='https://placehold.co/400x550/1f2937/7ca3f5?text=Inválida';">
-            
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl h-48 flex">
+        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="flex flex-grow">
+            <div class="w-32 flex-shrink-0">
+                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
+            </div>
 
-            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-black/40 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-20" data-url="${data.url}" title="Favoritar">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
-                </svg>
-            </button>
+            <div class="flex flex-col flex-grow p-3 text-white overflow-hidden">
+                <h3 class="text-base font-bold truncate" title="${data.title}">${data.title}</h3>
+                
+                <p class="text-xs text-gray-400 truncate" title="Por: ${author}${author !== artist ? ` & ${artist}` : ''}">
+                    Por: ${author}${author !== artist ? ` & ${artist}` : ''}
+                </p>
 
-            <div class="card-content relative z-10 p-3 text-white">
-                <h3 class="text-lg font-bold leading-tight line-clamp-2" style="-webkit-box-orient: vertical;" title="${data.title}">
-                    ${data.title}
-                </h3>
-                <div class="mt-2 flex items-center justify-between">
-                    ${typeHTML}
-                    ${chaptersHTML}
+                <p class="text-xs text-gray-300 mt-2 leading-snug line-clamp-2" style="-webkit-box-orient: vertical;" title="${description}">
+                    ${description}
+                </p>
+                
+                <div class="mt-auto pt-2 flex items-end justify-between text-xs">
+                    <div class="flex items-center gap-4 text-gray-300">
+                        <span class="flex items-center gap-1.5" title="Capítulos">${iconBook} ${chapters}</span>
+                        <span class="flex items-center gap-1.5" title="Status">${iconTag} ${status}</span>
+                    </div>
+                    <span class="bg-blue-600 text-white font-semibold px-2 py-0.5 rounded-md">${type}</span>
                 </div>
             </div>
         </a>
-    `;
-};
 
+        <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div>`;
+};
 
 const renderCards = (container, cardDataList, favoritesSet) => {
     if (!cardDataList || cardDataList.length === 0) {
         container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>Nenhum item encontrado.</p></div>`;
         return;
     }
-    // Adiciona um listener para o botão de favorito que não interfere com o link do card
-    container.addEventListener('click', function(e) {
-        const favoriteBtn = e.target.closest('.favorite-btn');
-        if (favoriteBtn) {
-            e.preventDefault(); // Impede a navegação ao clicar no botão
-            store.toggleFavorite(favoriteBtn.dataset.url);
-        }
-    });
     container.innerHTML = cardDataList.map(data => createCardHTML(data, favoritesSet.has(data.url))).join('');
 };
 
