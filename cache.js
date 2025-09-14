@@ -1,9 +1,11 @@
-import { CACHE_KEY, FAVORITES_KEY, CACHE_DURATION_MS } from './constants.js';
+import { CACHE_KEY, FAVORITES_KEY, CACHE_DURATION_MS, CACHE_VERSION_KEY } from './constants.js';
 
 export const getMangaCache = () => {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
     try {
+        // A verificação de tempo não é mais estritamente necessária aqui,
+        // pois a versão controla a atualização, mas mantemos como um fallback.
         const { timestamp, data } = JSON.parse(cached);
         if (Date.now() - timestamp > CACHE_DURATION_MS) {
             localStorage.removeItem(CACHE_KEY);
@@ -41,4 +43,18 @@ export const saveFavoritesToCache = (favoritesSet) => {
     } catch (e) {
         console.error("Erro ao salvar favoritos:", e);
     }
+};
+
+// --- NOVAS FUNÇÕES ---
+export const getMangaCacheVersion = () => {
+    return localStorage.getItem(CACHE_VERSION_KEY);
+};
+
+export const setMangaCacheVersion = (version) => {
+    localStorage.setItem(CACHE_VERSION_KEY, version);
+};
+
+export const clearMangaCache = () => {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_VERSION_KEY);
 };
