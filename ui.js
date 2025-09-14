@@ -35,16 +35,30 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
+// --- FUNÇÃO createCardHTML TOTALMENTE REESTRUTURADA ---
 const createCardHTML = (data, isFavorite) => {
     const shortDescription = data.description ? (data.description.length > 110 ? data.description.substring(0, 110) + '...' : data.description) : '';
-    const metadataHTML = [
-        { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>`, value: data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : null, title: `Tipo: ${data.type}` },
-        { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`, value: data.author, title: `Autor: ${data.author}` },
-        { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`, value: data.artist, title: `Artista: ${data.artist}` },
-        { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`, value: data.status },
-        { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h.01a1 1 0 100-2H10zm3 0a1 1 0 000 2h.01a1 1 0 100-2H13z" clip-rule="evenodd" /></svg>`, value: data.chapterCount ? `${data.chapterCount} Capítulos` : null }
-    ].filter(m => m.value).map(m => `<span class="flex items-center gap-1 text-xs text-gray-300" title="${m.title || ''}">${m.icon}<span class="truncate">${m.value}</span></span>`).join('');
-    const genresHTML = data.genres && data.genres.length > 0 ? `<div class="flex flex-wrap gap-1">${data.genres.slice(0, 3).map(g => `<span class="bg-gray-700 text-blue-300 text-xs font-semibold px-2 py-0.5 rounded-full">${g}</span>`).join('')}</div>` : '';
+    
+    // Gêneros
+    const genresHTML = data.genres && data.genres.length > 0 
+        ? `<div class="flex flex-wrap gap-1">${data.genres.slice(0, 3).map(g => `<span class="bg-gray-700 text-blue-300 text-xs font-semibold px-2 py-0.5 rounded-full">${g}</span>`).join('')}</div>` 
+        : '';
+
+    // Ícones para reutilização
+    const icons = {
+        type: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>`,
+        status: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`,
+        author: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`,
+        artist: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`,
+        chapters: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h.01a1 1 0 100-2H10zm3 0a1 1 0 000 2h.01a1 1 0 100-2H13z" clip-rule="evenodd" /></svg>`
+    };
+
+    // Gera o HTML para cada metadado condicionalmente
+    const typeHTML = data.type ? `<span class="flex items-center gap-1 font-semibold" title="Tipo">${icons.type} ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
+    const statusHTML = data.status ? `<span class="flex items-center gap-1" title="Status">${icons.status} ${data.status}</span>` : '';
+    const authorHTML = data.author ? `<span class="flex items-center gap-1 truncate" title="Autor: ${data.author}">${icons.author} ${data.author}</span>` : '';
+    const artistHTML = data.artist ? `<span class="flex items-center gap-1 truncate" title="Artista: ${data.artist}">${icons.artist} ${data.artist}</span>` : '';
+    const chaptersHTML = data.chapterCount ? `<span class="flex items-center gap-1" title="Capítulos">${icons.chapters} ${data.chapterCount} Capítulos</span>` : '';
 
     return `
         <div class="card-wrapper relative">
@@ -52,9 +66,20 @@ const createCardHTML = (data, isFavorite) => {
                 <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="card-image" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
                 <div class="flex flex-col flex-grow p-4 pt-10">
                     <p class="text-sm text-gray-400 flex-grow overflow-hidden">${shortDescription}</p>
-                    <div class="mt-auto pt-2 space-y-2">
+                    
+                    <div class="mt-auto pt-2 space-y-2 text-xs text-gray-300">
                         ${genresHTML}
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1">${metadataHTML}</div>
+                        
+                        <div class="flex justify-between items-center pr-2">
+                            ${typeHTML}
+                            ${statusHTML}
+                        </div>
+
+                        <div class="border-t border-gray-700/50 pt-1 space-y-0.5">
+                           ${authorHTML}
+                           ${artistHTML}
+                           ${chaptersHTML}
+                        </div>
                     </div>
                 </div>
                 <div class="absolute top-0 left-0 w-full p-2 bg-gradient-to-t from-transparent to-black/60 rounded-t-lg">
