@@ -58,6 +58,11 @@ export const store = {
         state.activeTab = tab;
         notify();
     },
+
+    setActiveTypeFilter(type) {
+        state.activeTypeFilter = type;
+        notify();
+    },
     
     setLoading(isLoading) {
         state.isLoading = isLoading;
@@ -84,4 +89,3 @@ export function initializeStore() {
     const favorites = loadFavoritesFromCache();
     store.setFavorites(favorites);
 }
-
