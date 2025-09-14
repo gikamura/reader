@@ -1,11 +1,7 @@
 import { initializeStore, store } from './store.js';
 import { fetchAndProcessMangaData } from './api.js';
-import { renderApp, getDOM } from './ui.js';
+import { renderApp, getDOM, showNotification } from './ui.js';
 
-/**
- * Anexa os event listeners da aplicação.
- * As funções de callback disparam ações no store, que por sua vez aciona a re-renderização.
- */
 function setupEventListeners() {
     const dom = getDOM();
 
@@ -15,13 +11,12 @@ function setupEventListeners() {
         }
     });
 
-    // Debounce para evitar re-renderizações excessivas ao digitar
     let searchTimeout;
     dom.searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             store.setSearchQuery(e.target.value);
-            store.setCurrentPage(1); // Resetar para a primeira página em nova busca
+            store.setCurrentPage(1);
         }, 300);
     });
 
@@ -37,43 +32,41 @@ function setupEventListeners() {
         if (favoriteBtn) {
             store.toggleFavorite(favoriteBtn.dataset.url);
         }
+        // --- ADICIONADO ---
+        if (e.target.matches('#reload-page-btn')) {
+            window.location.reload();
+        }
     });
 }
 
-/**
- * Função principal de inicialização da aplicação.
- */
 async function initializeApp() {
     const dom = getDOM();
-
-    // 1. Inicializa o store (carrega favoritos, etc.) e se inscreve nas mudanças.
     initializeStore();
     store.subscribe(renderApp);
-
-    // 2. Anexa os event listeners
     setupEventListeners();
-
-    // 3. Renderiza o estado inicial (abas, etc.)
     renderApp(); 
 
     try {
-        // 4. Busca os dados (do cache ou da rede)
-        const mangaData = await fetchAndProcessMangaData((message) => {
+        // --- MODIFICADO ---
+        const { data: mangaData, updated } = await fetchAndProcessMangaData((message) => {
             dom.subtitle.textContent = message;
         });
         
-        // 5. Atualiza o store com os dados, o que acionará uma nova renderização.
         store.setAllManga(mangaData);
         dom.subtitle.textContent = `${mangaData.length} obras no catálogo.`;
 
+        // --- ADICIONADO ---
+        if (updated) {
+            showNotification("Catálogo atualizado com sucesso!");
+        }
+
     } catch (error) {
         console.error("Erro fatal na inicialização:", error);
-        const errorMsg = `Erro ao carregar o catálogo. Verifique o console para detalhes. (${error.message})`;
+        const errorMsg = `Erro ao carregar o catálogo. Verifique sua conexão. (${error.message})`;
         store.setError(errorMsg);
     } finally {
         store.setLoading(false);
     }
 }
 
-// Inicia a aplicação quando o DOM estiver pronto.
 document.addEventListener('DOMContentLoaded', initializeApp);
