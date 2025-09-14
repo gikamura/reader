@@ -35,7 +35,6 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- CARD ATUALIZADO (TÍTULO SOBREPOSTO E CONTAGEM DE CAPÍTULOS) ---
 const createCardHTML = (data, isFavorite) => {
     // Ícones para metadados
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
@@ -51,7 +50,7 @@ const createCardHTML = (data, isFavorite) => {
     const chapterCount = data.chapterCount || 'N/A';
 
     return `
-    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl" style="height: 14rem;">
+    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
             
             <div class="w-1/3 flex-shrink-0 bg-gray-900">
@@ -59,9 +58,9 @@ const createCardHTML = (data, isFavorite) => {
             </div>
 
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
-                <div class="h-8"></div> 
+                <div class="h-10"></div> 
 
-                <p class="text-sm text-gray-400 leading-snug line-clamp-3 flex-grow" style="-webkit-box-orient: vertical;" title="${description}">
+                <p class="text-sm text-gray-400 leading-snug line-clamp-4 flex-grow" style="-webkit-box-orient: vertical;" title="${description}">
                     ${description}
                 </p>
                 
@@ -81,7 +80,7 @@ const createCardHTML = (data, isFavorite) => {
                 </div>
             </div>
 
-            <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent z-10 pointer-events-none">
+            <div class="absolute top-0 left-0 right-0 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent z-10 pointer-events-none">
                  <h3 class="text-lg font-bold truncate text-white" title="${data.title}">${data.title}</h3>
             </div>
 
