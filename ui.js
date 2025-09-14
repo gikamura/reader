@@ -101,7 +101,7 @@ const createCardHTML = (data, isFavorite) => {
 
 const renderCards = (container, cardDataList, favoritesSet) => {
     if (!cardDataList || cardDataList.length === 0) {
-        container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 text-center text-gray-400 p-8"><p>Nenhum item encontrado.</p></div>`;
+        container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>Nenhum item encontrado.</p></div>`;
         return;
     }
     container.innerHTML = cardDataList.map(data => createCardHTML(data, favoritesSet.has(data.url))).join('');
