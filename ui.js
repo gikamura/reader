@@ -35,53 +35,63 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- CARD ATUALIZADO (AUTOR E ARTISTA NA HORIZONTAL) ---
+// --- CARD ATUALIZADO (TÍTULO SOBREPOSTO E CONTAGEM DE CAPÍTULOS) ---
 const createCardHTML = (data, isFavorite) => {
     // Ícones para metadados
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
     const iconPaintBrush = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
-
+    const iconBookOpen = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg>`;
+    
     // Limpa os dados para evitar texto 'null' ou 'undefined'
     const author = data.author || 'N/A';
     const artist = data.artist || 'N/A';
     const status = data.status || 'N/A';
     const type = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A';
     const description = data.description || 'Sem descrição disponível.';
+    const chapterCount = data.chapterCount || 'N/A';
 
     return `
-    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex" style="height: 14rem;">
-        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="flex flex-grow w-full">
+    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl" style="height: 14rem;">
+        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
             
-            <div class="w-1/3 flex-shrink-0 relative">
-                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="absolute top-0 left-0 w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
-                <div class="absolute bottom-2 right-2 flex items-center gap-2">
-                     <span class="bg-gray-900/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
-                     <span class="bg-blue-600 text-white font-semibold px-2 py-1 rounded-md text-xs">${type}</span>
-                </div>
+            <div class="w-1/3 flex-shrink-0 bg-gray-900">
+                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
             </div>
 
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
-                <h3 class="text-lg font-bold truncate" title="${data.title}">${data.title}</h3>
-                
-                <p class="text-sm text-gray-400 mt-2 leading-snug line-clamp-3 flex-grow" style="-webkit-box-orient: vertical;" title="${description}">
+                <div class="h-8"></div> 
+
+                <p class="text-sm text-gray-400 leading-snug line-clamp-3 flex-grow" style="-webkit-box-orient: vertical;" title="${description}">
                     ${description}
                 </p>
                 
-                <div class="mt-auto pt-3 border-t border-gray-700 text-xs flex items-center space-x-4">
-                    <div class="flex items-center gap-2 text-gray-300 truncate" title="Autor: ${author}">
+                <div class="mt-auto pt-3 border-t border-gray-700 text-xs flex items-center justify-start space-x-4 overflow-hidden">
+                    <div class="flex items-center gap-1.5 text-gray-300 truncate" title="Autor: ${author}">
                         ${iconUser}
                         <span class="truncate">${author}</span>
                     </div>
-                    <div class="flex items-center gap-2 text-gray-300 truncate" title="Artista: ${artist}">
+                    <div class="flex items-center gap-1.5 text-gray-300 truncate" title="Artista: ${artist}">
                         ${iconPaintBrush}
                         <span class="truncate">${artist}</span>
+                    </div>
+                     <div class="flex items-center gap-1.5 text-gray-300 truncate" title="Capítulos: ${chapterCount}">
+                        ${iconBookOpen}
+                        <span class="truncate">${chapterCount}</span>
                     </div>
                 </div>
             </div>
 
+            <div class="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent z-10 pointer-events-none">
+                 <h3 class="text-lg font-bold truncate text-white" title="${data.title}">${data.title}</h3>
+            </div>
+
+            <div class="absolute bottom-2 left-2 flex items-center gap-2 z-10">
+                 <span class="bg-gray-900/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
+                 <span class="bg-blue-600 text-white font-semibold px-2 py-1 rounded-md text-xs">${type}</span>
+            </div>
         </a>
 
-        <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
+        <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-20" data-url="${data.url}" title="Favoritar">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
             </svg>
