@@ -13,9 +13,30 @@ export function getDOM() {
             searchInput: document.getElementById('search-input'),
             contentContainer: document.getElementById('content-container'),
             paginationControls: document.getElementById('pagination-controls'),
+            notification: document.getElementById('notification'), // Adicionado para a notificação
         };
     }
     return dom;
+}
+
+/**
+ * Exibe uma notificação na tela por um curto período.
+ * @param {string} message - A mensagem a ser exibida.
+ * @param {number} duration - Quanto tempo a notificação fica visível em milissegundos.
+ */
+let notificationTimeout;
+export function showNotification(message, duration = 4000) {
+    const { notification } = getDOM();
+    if (!notification) return;
+
+    clearTimeout(notificationTimeout); // Limpa qualquer notificação anterior
+
+    notification.textContent = message;
+    notification.classList.remove('translate-y-20', 'opacity-0'); // Torna visível
+
+    notificationTimeout = setTimeout(() => {
+        notification.classList.add('translate-y-20', 'opacity-0'); // Esconde novamente
+    }, duration);
 }
 
 const createCardHTML = (data, isFavorite) => {
@@ -85,8 +106,15 @@ export function renderApp() {
     // Renderiza loader e erros
     dom.mainLoader.classList.toggle('hidden', !state.isLoading);
     if (state.error) {
-        dom.contentContainer.innerHTML = `<div class="col-span-full text-center text-red-400 p-8 bg-gray-800 rounded-lg"><p>${state.error}</p></div>`;
+        dom.contentContainer.innerHTML = `
+            <div class="col-span-full text-center text-red-400 p-8 bg-gray-800 rounded-lg space-y-4">
+                <p>${state.error}</p>
+                <button id="reload-page-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    Atualizar Página
+                </button>
+            </div>`;
         dom.paginationControls.innerHTML = '';
+        dom.subtitle.textContent = "Ocorreu um erro";
         return;
     }
     
