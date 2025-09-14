@@ -42,6 +42,11 @@
         .tab:not(.active) {
             border-color: transparent;
         }
+        /* Estilo para o botão de filtro ativo */
+        .type-filter-btn.active {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200 font-sans antialiased">
@@ -62,6 +67,13 @@
                 </nav>
                 <div id="search-container" class="w-full sm:w-auto hidden">
                     <input type="search" id="search-input" placeholder="Buscar na biblioteca..." class="w-full sm:w-64 bg-gray-700 text-gray-200 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div id="type-filter-container" class="bg-gray-900 rounded-lg p-1 space-x-1 hidden">
+                    <button data-type="all" class="type-filter-btn active px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Todos</button>
+                    <button data-type="manga" class="type-filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manga</button>
+                    <button data-type="manhwa" class="type-filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manhwa</button>
+                    <button data-type="manhua" class="type-filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manhua</button>
                 </div>
             </div>
         </div>
