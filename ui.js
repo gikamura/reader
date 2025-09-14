@@ -14,6 +14,7 @@ export function getDOM() {
             contentContainer: document.getElementById('content-container'),
             paginationControls: document.getElementById('pagination-controls'),
             notification: document.getElementById('notification'),
+            typeFilterContainer: document.getElementById('type-filter-container'),
         };
     }
     return dom;
@@ -21,19 +22,14 @@ export function getDOM() {
 
 /**
  * Exibe uma notificação na tela por um curto período.
- * @param {string} message - A mensagem a ser exibida.
- * @param {number} duration - Quanto tempo a notificação fica visível em milissegundos.
  */
 let notificationTimeout;
 export function showNotification(message, duration = 4000) {
     const { notification } = getDOM();
     if (!notification) return;
-
     clearTimeout(notificationTimeout);
-
     notification.textContent = message;
     notification.classList.remove('translate-y-20', 'opacity-0');
-
     notificationTimeout = setTimeout(() => {
         notification.classList.add('translate-y-20', 'opacity-0');
     }, duration);
@@ -97,14 +93,11 @@ const renderPagination = (controlsContainer, totalItems, currentPage) => {
 
 /**
  * Função de renderização principal.
- * Lê o estado atual do 'store' e atualiza o DOM para refleti-lo.
- * Esta é a única função que deve fazer manipulação direta do DOM em massa.
  */
 export function renderApp() {
     const state = store.getState();
     const dom = getDOM();
 
-    // Renderiza loader e erros
     dom.mainLoader.classList.toggle('hidden', !state.isLoading);
     if (state.error) {
         dom.contentContainer.innerHTML = `
@@ -119,11 +112,17 @@ export function renderApp() {
         return;
     }
     
-    // Renderiza estado das abas
     dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
-    dom.searchContainer.classList.toggle('hidden', state.activeTab !== 'library');
+    const isLibraryActive = state.activeTab === 'library';
+    dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.typeFilterContainer.classList.toggle('hidden', !isLibraryActive);
 
-    // Determina qual conteúdo mostrar com base na aba ativa
+    if (isLibraryActive) {
+        dom.typeFilterContainer.querySelectorAll('.type-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter);
+        });
+    }
+
     let itemsToDisplay = [];
     let totalPaginationItems = 0;
 
@@ -136,7 +135,12 @@ export function renderApp() {
         case 'library':
             const filteredLibrary = state.allManga
                 .filter(m => m.title.toLowerCase().includes(state.searchQuery.toLowerCase()))
+                .filter(m => {
+                    if (state.activeTypeFilter === 'all') return true;
+                    return m.type === state.activeTypeFilter;
+                })
                 .sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+            
             totalPaginationItems = filteredLibrary.length;
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
             break;
