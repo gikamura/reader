@@ -35,55 +35,35 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- VERSÃO FINAL DO CARD: HÍBRIDO, COMPACTO, COM DESCRIÇÃO CONTROLADA ---
+// --- CARD FINAL "GLASSMORPHISM" - VISUALMENTE SUPERIOR E INTUITIVO ---
 const createCardHTML = (data, isFavorite) => {
-    // Ícones em SVG para economizar espaço e melhorar a identificação visual
-    const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
-    const iconBrush = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
-    const iconBook = `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6z" clip-rule="evenodd" /></svg>`;
-
-    // Gera o HTML para cada metadado condicionalmente
-    const typeHTML = data.type ? `<span class="bg-gray-700 text-blue-300 text-xs font-semibold px-2.5 py-1 rounded-full">${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
-    const statusHTML = data.status ? `<span class="bg-gray-700 text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-full">${data.status}</span>` : '';
-    const authorHTML = data.author ? `<li class="flex items-center gap-1.5 truncate" title="Autor: ${data.author}">${iconUser} <span class="truncate">${data.author}</span></li>` : '';
-    const artistHTML = data.artist ? `<li class="flex items-center gap-1.5 truncate" title="Artista: ${data.artist}">${iconBrush} <span class="truncate">${data.artist}</span></li>` : '';
-    const chaptersHTML = data.chapterCount ? `<li class="flex items-center gap-1.5" title="Capítulos">${iconBook} ${data.chapterCount}</li>` : '';
-
-    // Adiciona a descrição de volta, com um limite de caracteres para o HTML não ficar gigante
-    const shortDescription = data.description ? (data.description.length > 90 ? data.description.substring(0, 90) + '...' : data.description) : 'Sem descrição disponível.';
+    const typeHTML = data.type ? `<span class="bg-black/30 text-white text-xs font-medium px-2 py-0.5 rounded-full">${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
+    const chaptersHTML = data.chapterCount ? `<div class="text-xs"><span class="font-semibold">${data.chapterCount}</span> Capítulos</div>` : '';
 
     return `
-        <div class="card-wrapper relative">
-            <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="card-container relative flex bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl">
-                
-                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-24 md:w-28 flex-shrink-0 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
+        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="manga-card relative flex flex-col justify-end group rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl">
+            
+            <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105 -z-10" onerror="this.onerror=null;this.src='https://placehold.co/400x550/1f2937/7ca3f5?text=Inválida';">
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
-                <div class="flex flex-col flex-grow p-3">
-                    <h3 class="text-base font-bold truncate text-white mb-2" title="${data.title}">${data.title}</h3>
-                    
-                    <div class="flex items-center flex-wrap gap-2">
-                        ${typeHTML}
-                        ${statusHTML}
-                    </div>
-
-                    <p class="text-xs text-gray-400 my-2 leading-snug line-clamp-3" style="-webkit-box-orient: vertical;">
-                        ${shortDescription}
-                    </p>
-                    
-                    <ul class="mt-auto border-t border-gray-700/50 pt-2 space-y-1 text-xs text-gray-300">
-                       ${authorHTML}
-                       ${artistHTML}
-                       ${chaptersHTML}
-                    </ul>
-                </div>
-
-            </a>
-            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
+            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-black/40 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-20" data-url="${data.url}" title="Favoritar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                   <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
                 </svg>
             </button>
-        </div>`;
+
+            <div class="card-content relative z-10 p-3 text-white">
+                <h3 class="text-lg font-bold leading-tight line-clamp-2" style="-webkit-box-orient: vertical;" title="${data.title}">
+                    ${data.title}
+                </h3>
+                <div class="mt-2 flex items-center justify-between">
+                    ${typeHTML}
+                    ${chaptersHTML}
+                </div>
+            </div>
+        </a>
+    `;
 };
 
 
@@ -92,6 +72,14 @@ const renderCards = (container, cardDataList, favoritesSet) => {
         container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>Nenhum item encontrado.</p></div>`;
         return;
     }
+    // Adiciona um listener para o botão de favorito que não interfere com o link do card
+    container.addEventListener('click', function(e) {
+        const favoriteBtn = e.target.closest('.favorite-btn');
+        if (favoriteBtn) {
+            e.preventDefault(); // Impede a navegação ao clicar no botão
+            store.toggleFavorite(favoriteBtn.dataset.url);
+        }
+    });
     container.innerHTML = cardDataList.map(data => createCardHTML(data, favoritesSet.has(data.url))).join('');
 };
 
