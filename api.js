@@ -1,4 +1,4 @@
-import { getMangaCache, setMangaCache } from './cache.js';
+import { getMangaCache, setMangaCache, getMangaCacheVersion, setMangaCacheVersion, clearMangaCache } from './cache.js';
 import { INDEX_URL, PROXIES } from './constants.js';
 
 // --- Lógica de Rede ---
@@ -35,10 +35,10 @@ const b64DecodeUnicode = (str) => {
     }).join(''));
 };
 
-const processMangaUrl = async (chapterUrl) => {
+const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
     try {
         const cubariMatch = chapterUrl.match(/cubari\.moe\/read\/gist\/([^/]+)/);
-        if (!cubariMatch) return { url: chapterUrl, error: true, title: 'URL Inválida' };
+        if (!cubariMatch) return { url: chapterUrl, error: true, title: preFetchedData.title || 'URL Inválida' };
 
         const base64url = decodeURIComponent(cubariMatch[1]);
         let b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
@@ -62,9 +62,9 @@ const processMangaUrl = async (chapterUrl) => {
 
         return {
             url: chapterUrl,
-            title: data.title || 'N/A',
+            title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            imageUrl: data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa',
+            imageUrl: preFetchedData.cover_url ? `${PROXIES[0]}${encodeURIComponent(preFetchedData.cover_url)}` : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa'),
             author: data.author,
             artist: data.artist,
             genres: data.genres,
@@ -74,39 +74,57 @@ const processMangaUrl = async (chapterUrl) => {
             error: false
         };
     } catch (error) {
-        console.error(`Falha ao processar ${chapterUrl}:`, error);
-        return { url: chapterUrl, title: 'Falha ao Carregar', description: error.message, imageUrl: 'https://placehold.co/256x384/1f2937/ef4444?text=Erro', error: true };
+        console.error(`Falha ao processar ${chapterUrl} para a obra "${preFetchedData.title}":`, error);
+        return { url: chapterUrl, title: preFetchedData.title || 'Falha ao Carregar', description: error.message, imageUrl: 'https://placehold.co/256x384/1f2937/ef4444?text=Erro', error: true };
     }
 };
 
 /**
- * Orquestra a busca de dados, usando cache se disponível.
+ * Orquestra a busca de dados, verificando a versão para usar o cache de forma inteligente.
  * @param {Function} updateStatus - Callback para atualizar a UI com mensagens de status.
- * @returns {Promise<Array>} - A lista de dados dos mangás.
+ * @returns {Promise<{data: Array, updated: boolean}>} - Um objeto contendo a lista de mangás e um booleano indicando se foi atualizado.
  */
 export async function fetchAndProcessMangaData(updateStatus) {
-    const cachedData = getMangaCache();
-    if (cachedData) {
-        updateStatus(`Carregando ${cachedData.length} obras do cache...`);
-        return cachedData;
-    }
-
-    updateStatus('Buscando índice de obras na rede...');
+    updateStatus('Verificando por atualizações...');
+    
     const response = await fetchWithTimeout(INDEX_URL);
     if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
     const indexData = await response.json();
     
-    const urls = [];
-    if (indexData.mangas) {
-        for (const key in indexData.mangas) {
-            indexData.mangas[key].chapters.forEach(chap => urls.push(chap.url));
+    const remoteVersion = indexData.metadata.version;
+    const localVersion = getMangaCacheVersion();
+
+    if (remoteVersion === localVersion) {
+        const cachedData = getMangaCache();
+        if (cachedData) {
+            updateStatus(`Catálogo atualizado. Carregando ${cachedData.length} obras do cache...`);
+            return { data: cachedData, updated: false };
         }
     }
+    
+    updateStatus('Nova versão encontrada! Atualizando o catálogo...');
+    clearMangaCache();
 
-    updateStatus(`Processando ${urls.length} obras...`);
-    const mangaDetailsPromises = urls.map(processMangaUrl);
+    const mangaDetailsPromises = Object.values(indexData.mangas).map(mangaSeries => {
+        const representativeChapter = mangaSeries.chapters[0];
+        if (!representativeChapter || !representativeChapter.url) {
+            console.warn('Série sem capítulos ou URL válida:', mangaSeries.title);
+            return null;
+        }
+
+        const preFetchedData = {
+            title: mangaSeries.title,
+            cover_url: representativeChapter.cover_url || null
+        };
+
+        return processMangaUrl(representativeChapter.url, preFetchedData);
+    }).filter(p => p !== null);
+
+    updateStatus(`Processando ${mangaDetailsPromises.length} obras...`);
     const allManga = await Promise.all(mangaDetailsPromises);
     
     setMangaCache(allManga);
-    return allManga;
+    setMangaCacheVersion(remoteVersion);
+    
+    return { data: allManga, updated: true };
 }
