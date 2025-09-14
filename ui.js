@@ -35,45 +35,43 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- FUNÇÃO createCardHTML COM LAYOUT CORRIGIDO E COMPLETO ---
+// --- NOVA FUNÇÃO createCardHTML COM LAYOUT VERTICAL E VISUAL APRIMORADO ---
 const createCardHTML = (data, isFavorite) => {
-    // Aumentamos um pouco o limite da descrição
-    const shortDescription = data.description ? (data.description.length > 130 ? data.description.substring(0, 130) + '...' : data.description) : 'Sem descrição disponível.';
-    
-    // Gera o HTML para cada metadado condicionalmente
-    const typeHTML = data.type ? `<span class="bg-gray-700 text-blue-300 text-xs font-semibold px-2.5 py-1 rounded-full">${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
-    const statusHTML = data.status ? `<span class="bg-gray-700 text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-full">${data.status}</span>` : '';
-    const authorHTML = data.author ? `<li class="truncate" title="Autor: ${data.author}"><span class="font-semibold text-gray-400">Autor:</span> ${data.author}</li>` : '';
-    const artistHTML = data.artist ? `<li class="truncate" title="Artista: ${data.artist}"><span class="font-semibold text-gray-400">Artista:</span> ${data.artist}</li>` : '';
-    const chaptersHTML = data.chapterCount ? `<li title="Capítulos"><span class="font-semibold text-gray-400">Capítulos:</span> ${data.chapterCount}</li>` : '';
+    // Tags de metadados, como tipo e status, são mais visuais e informativas.
+    const typeHTML = data.type ? `<span class="bg-blue-900/50 text-blue-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>` : '';
+    const statusHTML = data.status ? `<span class="bg-gray-700 text-gray-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">${data.status}</span>` : '';
 
     return `
-        <div class="card-wrapper relative">
-            <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="card-container relative flex bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl">
-                
-                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="card-image" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
-
-                <div class="flex flex-col flex-grow p-3">
-                    <h3 class="text-base font-bold truncate text-white mb-2" title="${data.title}">${data.title}</h3>
-                    
-                    <p class="text-sm text-gray-400 flex-grow overflow-hidden mb-2">${shortDescription}</p>
-                    
-                    <div class="mt-auto flex flex-col gap-2 text-xs text-gray-300">
-                        <div class="flex items-center gap-2">
-                            ${typeHTML}
-                            ${statusHTML}
-                        </div>
-                        
-                        <ul class="border-t border-gray-700/50 pt-1.5 space-y-1">
-                           ${authorHTML}
-                           ${artistHTML}
-                           ${chaptersHTML}
-                        </ul>
-                    </div>
+        <div class="card-wrapper relative flex flex-col bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group">
+            
+            <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="block">
+                <div class="relative">
+                    <img 
+                        src="${data.imageUrl}" 
+                        alt="Capa de ${data.title}" 
+                        class="w-full h-auto aspect-[2/3] object-cover" 
+                        onerror="this.onerror=null;this.src='https://placehold.co/300x450/1f2937/7ca3f5?text=Inválida';"
+                    >
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
 
+                <div class="flex flex-col flex-grow p-3">
+                    <h3 
+                        class="text-base font-bold text-white mb-2 leading-tight line-clamp-2" 
+                        title="${data.title}"
+                        style="-webkit-box-orient: vertical;"
+                    >
+                        ${data.title}
+                    </h3>
+                    
+                    <div class="mt-auto flex items-center flex-wrap gap-2 pt-2">
+                        ${typeHTML}
+                        ${statusHTML}
+                    </div>
+                </div>
             </a>
-            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
+
+            <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/60 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-10" data-url="${data.url}" title="Favoritar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                    <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
                 </svg>
@@ -81,8 +79,6 @@ const createCardHTML = (data, isFavorite) => {
         </div>`;
 };
 
-
-// O restante do arquivo (renderCards, renderPagination, renderApp) permanece o mesmo
 const renderCards = (container, cardDataList, favoritesSet) => {
     if (!cardDataList || cardDataList.length === 0) {
         container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>Nenhum item encontrado.</p></div>`;
