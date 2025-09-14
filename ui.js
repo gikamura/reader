@@ -35,44 +35,48 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// --- OPÇÃO 2: CARD INFORMATIVO (COM DESCRIÇÃO) ---
+// --- NOVO CARD VERTICAL ---
 const createCardHTML = (data, isFavorite) => {
     // Ícones para metadados
-    const iconBook = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6z" clip-rule="evenodd" /></svg>`;
+    const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
+    const iconPaintBrush = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
     const iconTag = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a1 1 0 011-1h5a1 1 0 01.707.293l7 7zM6 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>`;
 
     // Limpa os dados para evitar texto 'null' ou 'undefined'
     const author = data.author || 'N/A';
     const artist = data.artist || 'N/A';
-    const chapters = data.chapterCount || 'N/A';
     const status = data.status || 'N/A';
-    const type = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A';
     const description = data.description || 'Sem descrição disponível.';
+    const type = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A';
 
     return `
-    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl h-48 flex">
-        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="flex flex-grow">
-            <div class="w-32 flex-shrink-0">
+    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex flex-col">
+        <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="flex-grow flex flex-col">
+            <div class="relative h-64">
                 <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
+                <span class="absolute bottom-2 right-2 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded-md">${type}</span>
             </div>
 
-            <div class="flex flex-col flex-grow p-3 text-white overflow-hidden">
-                <h3 class="text-base font-bold truncate" title="${data.title}">${data.title}</h3>
-                
-                <p class="text-xs text-gray-400 truncate" title="Por: ${author}${author !== artist ? ` & ${artist}` : ''}">
-                    Por: ${author}${author !== artist ? ` & ${artist}` : ''}
-                </p>
+            <div class="flex flex-col flex-grow p-4">
+                <h3 class="text-lg font-bold truncate mb-2" title="${data.title}">${data.title}</h3>
 
-                <p class="text-xs text-gray-300 mt-2 leading-snug line-clamp-2" style="-webkit-box-orient: vertical;" title="${description}">
+                <p class="text-sm text-gray-400 line-clamp-3 flex-grow" style="-webkit-box-orient: vertical;" title="${description}">
                     ${description}
                 </p>
-                
-                <div class="mt-auto pt-2 flex items-end justify-between text-xs">
-                    <div class="flex items-center gap-4 text-gray-300">
-                        <span class="flex items-center gap-1.5" title="Capítulos">${iconBook} ${chapters}</span>
-                        <span class="flex items-center gap-1.5" title="Status">${iconTag} ${status}</span>
+
+                <div class="mt-4 pt-4 border-t border-gray-700 text-sm text-gray-300 space-y-2">
+                    <div class="flex items-center gap-2" title="Autor">
+                        ${iconUser}
+                        <span>${author}</span>
                     </div>
-                    <span class="bg-blue-600 text-white font-semibold px-2 py-0.5 rounded-md">${type}</span>
+                    <div class="flex items-center gap-2" title="Artista">
+                        ${iconPaintBrush}
+                        <span>${artist}</span>
+                    </div>
+                    <div class="flex items-center gap-2" title="Status">
+                        ${iconTag}
+                        <span>${status}</span>
+                    </div>
                 </div>
             </div>
         </a>
@@ -84,6 +88,7 @@ const createCardHTML = (data, isFavorite) => {
         </button>
     </div>`;
 };
+
 
 const renderCards = (container, cardDataList, favoritesSet) => {
     if (!cardDataList || cardDataList.length === 0) {
