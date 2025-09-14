@@ -13,7 +13,7 @@ export function getDOM() {
             searchInput: document.getElementById('search-input'),
             contentContainer: document.getElementById('content-container'),
             paginationControls: document.getElementById('pagination-controls'),
-            notification: document.getElementById('notification'), // Adicionado para a notificação
+            notification: document.getElementById('notification'),
         };
     }
     return dom;
@@ -29,19 +29,20 @@ export function showNotification(message, duration = 4000) {
     const { notification } = getDOM();
     if (!notification) return;
 
-    clearTimeout(notificationTimeout); // Limpa qualquer notificação anterior
+    clearTimeout(notificationTimeout);
 
     notification.textContent = message;
-    notification.classList.remove('translate-y-20', 'opacity-0'); // Torna visível
+    notification.classList.remove('translate-y-20', 'opacity-0');
 
     notificationTimeout = setTimeout(() => {
-        notification.classList.add('translate-y-20', 'opacity-0'); // Esconde novamente
+        notification.classList.add('translate-y-20', 'opacity-0');
     }, duration);
 }
 
 const createCardHTML = (data, isFavorite) => {
     const shortDescription = data.description ? (data.description.length > 110 ? data.description.substring(0, 110) + '...' : data.description) : '';
     const metadataHTML = [
+        { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>`, value: data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : null, title: `Tipo: ${data.type}` },
         { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`, value: data.author, title: `Autor: ${data.author}` },
         { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`, value: data.artist, title: `Artista: ${data.artist}` },
         { icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>`, value: data.status },
