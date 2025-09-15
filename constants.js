@@ -22,7 +22,7 @@ export function getInitialState() {
         searchQuery: '',
         activeTab: 'home',
         activeTypeFilter: 'all', // Filtro por tipo
-        librarySortOrder: 'title', // Ordenação da biblioteca
+        activeStatusFilter: 'all', // Filtro por status
         isLoading: true,
         error: null,
     };
