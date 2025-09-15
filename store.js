@@ -3,12 +3,8 @@ import { getInitialState } from './constants.js';
 
 let state = getInitialState();
 
-// A lista de 'listeners' que serão chamados quando o estado mudar.
 const subscribers = new Set();
 
-/**
- * O objeto 'store' é a única fonte de verdade para o estado da aplicação.
- */
 export const store = {
     subscribe(callback) {
         subscribers.add(callback);
@@ -18,8 +14,6 @@ export const store = {
         return { ...state };
     },
     
-    // --- Ações que modificam o estado ---
-
     setAllManga(mangaArray) {
         state.allManga = mangaArray;
         notify();
@@ -65,6 +59,11 @@ export const store = {
         notify();
     },
     
+    setLibrarySortOrder(order) {
+        state.librarySortOrder = order;
+        notify();
+    },
+
     setLoading(isLoading) {
         state.isLoading = isLoading;
         notify();
