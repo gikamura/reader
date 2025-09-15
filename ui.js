@@ -1,7 +1,47 @@
-// ui.js
+import { store } from './store.js';
+import { ITEMS_PER_PAGE } from './constants.js';
+
+let dom = null;
+export function getDOM() {
+    if (!dom) {
+        dom = {
+            subtitle: document.getElementById('subtitle'),
+            mainLoader: document.getElementById('main-loader'),
+            tabs: document.getElementById('tabs'),
+            searchContainer: document.getElementById('search-container'),
+            searchInput: document.getElementById('search-input'),
+            contentContainer: document.getElementById('content-container'),
+            paginationControls: document.getElementById('pagination-controls'),
+            notification: document.getElementById('notification'),
+            typeFilterContainer: document.getElementById('type-filter-container'),
+            statusFilterContainer: document.getElementById('status-filter-container'),
+            sortContainer: document.getElementById('sort-container'),
+        };
+    }
+    return dom;
+}
+
+let notificationTimeout;
+export function showNotification(message, duration = 4000) {
+    const { notification } = getDOM();
+    if (!notification) return;
+    clearTimeout(notificationTimeout);
+    notification.textContent = message;
+    notification.classList.remove('translate-y-20', 'opacity-0');
+    notificationTimeout = setTimeout(() => {
+        notification.classList.add('translate-y-20', 'opacity-0');
+    }, duration);
+}
+
+const createCardMetadata = (icon, title, value) => {
+    return `
+    <div class="flex items-center gap-1.5 text-gray-300 truncate" title="${title}: ${value}">
+        ${icon}
+        <span class="truncate">${value}</span>
+    </div>`;
+};
 
 const createCardHTML = (data, isFavorite) => {
-    // ... (código dos ícones e variáveis permanece o mesmo) ...
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
     const iconPaintBrush = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
     const iconBookOpen = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg>`;
@@ -46,3 +86,85 @@ const createCardHTML = (data, isFavorite) => {
         </button>
     </div>`;
 };
+
+const renderCards = (container, cardDataList, favoritesSet) => {
+    const { activeTab } = store.getState();
+    if (!cardDataList || cardDataList.length === 0) {
+        let message = activeTab === 'favorites' ? 'Você ainda não adicionou nenhum favorito. Clique no coração ♡ em uma obra para adicioná-la aqui.' : 'Nenhum resultado para a sua busca. Tente outros termos.';
+        container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>${message}</p></div>`;
+        return;
+    }
+    container.innerHTML = cardDataList.map(data => createCardHTML(data, favoritesSet.has(data.url))).join('');
+};
+
+const renderPagination = (controlsContainer, totalItems, currentPage) => {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    if (totalPages <= 1) {
+        controlsContainer.innerHTML = '';
+        return;
+    }
+    let buttons = '';
+    for (let i = 1; i <= totalPages; i++) {
+        const isActive = i === currentPage;
+        buttons += `<button data-page="${i}" class="pagination-btn px-4 py-2 text-sm font-medium rounded-md ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}">${i}</button>`;
+    }
+    controlsContainer.innerHTML = buttons;
+};
+
+export function renderApp() {
+    const state = store.getState();
+    const dom = getDOM();
+
+    dom.mainLoader.classList.toggle('hidden', !state.isLoading);
+    if (state.error) {
+        dom.contentContainer.innerHTML = `<div class="col-span-full text-center text-red-400 p-8 bg-gray-800 rounded-lg space-y-4"><p>${state.error}</p><button id="reload-page-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">Atualizar Página</button></div>`;
+        dom.paginationControls.innerHTML = '';
+        dom.subtitle.textContent = "Ocorreu um erro";
+        return;
+    }
+    
+    dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
+    const isLibraryActive = state.activeTab === 'library';
+    dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.typeFilterContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.statusFilterContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.sortContainer.classList.toggle('hidden', !isLibraryActive);
+
+    if (isLibraryActive) {
+        dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter));
+        dom.statusFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.status === state.activeStatusFilter));
+    }
+
+    let itemsToDisplay = [];
+    let totalPaginationItems = 0;
+
+    switch (state.activeTab) {
+        case 'home':
+            itemsToDisplay = [...state.allManga]
+                .sort((a, b) => b.lastUpdated - a.lastUpdated)
+                .slice(0, 20);
+            break;
+        case 'library':
+            let filteredLibrary = state.allManga
+                .filter(m => m.title.toLowerCase().includes(state.searchQuery.toLowerCase()))
+                .filter(m => state.activeTypeFilter === 'all' || m.type === state.activeTypeFilter)
+                .filter(m => state.activeStatusFilter === 'all' || (m.status || '').toLowerCase() === state.activeStatusFilter);
+
+            filteredLibrary.sort((a, b) => {
+                if (state.librarySortOrder === 'latest') {
+                    return b.lastUpdated - a.lastUpdated;
+                }
+                return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+            });
+            
+            totalPaginationItems = filteredLibrary.length;
+            itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
+            break;
+        case 'favorites':
+            itemsToDisplay = state.allManga.filter(m => state.favorites.has(m.url));
+            break;
+    }
+
+    renderCards(dom.contentContainer, itemsToDisplay, state.favorites);
+    renderPagination(dom.paginationControls, totalPaginationItems, state.currentPage);
+}
