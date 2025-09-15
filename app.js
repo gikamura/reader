@@ -14,13 +14,13 @@ function setupEventListeners() {
         }
     });
 
-    // Debounce para evitar re-renderizações excessivas ao digitar
+    // Debounce para a busca
     let searchTimeout;
     dom.searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
             store.setSearchQuery(e.target.value);
-            store.setCurrentPage(1); // Resetar para a primeira página em nova busca
+            store.setCurrentPage(1);
         }, 300);
     });
 
@@ -31,32 +31,23 @@ function setupEventListeners() {
         }
     });
 
-    // Listener para os filtros de tipo
-    if (dom.typeFilterContainer) {
-        dom.typeFilterContainer.addEventListener('click', (e) => {
-            const button = e.target.closest('.type-filter-btn');
-            if (button) {
-                const type = button.dataset.type;
-                store.setActiveTypeFilter(type);
-                store.setCurrentPage(1); // Reseta para a primeira página ao aplicar filtro
-            }
-        });
-    }
-
-    // Listener para o seletor de ordenação
-    const sortSelect = document.getElementById('sort-select');
-    if (sortSelect) {
-        sortSelect.addEventListener('change', (e) => {
-            store.setLibrarySortOrder(e.target.value);
-        });
-    }
-
-    // Listener delegado para favoritos e botão de recarregar
+    // Delegação de eventos para os filtros
     document.body.addEventListener('click', (e) => {
+        const typeButton = e.target.closest('#type-filter-container .filter-btn');
+        if (typeButton) {
+            store.setActiveTypeFilter(typeButton.dataset.type);
+            store.setCurrentPage(1);
+        }
+
+        const statusButton = e.target.closest('#status-filter-container .filter-btn');
+        if (statusButton) {
+            store.setActiveStatusFilter(statusButton.dataset.status);
+            store.setCurrentPage(1);
+        }
+        
         const favoriteBtn = e.target.closest('.favorite-btn');
         if (favoriteBtn) {
             store.toggleFavorite(favoriteBtn.dataset.url);
-            // Adiciona classe para animação de "pulso"
             favoriteBtn.classList.add('pulsing');
             favoriteBtn.addEventListener('animationend', () => {
                 favoriteBtn.classList.remove('pulsing');
@@ -68,21 +59,18 @@ function setupEventListeners() {
         }
     });
 
-    // Listener para o botão "Voltar ao Topo"
+    // Botão "Voltar ao Topo"
     const backToTopButton = document.getElementById('back-to-top');
-    if (backToTopButton) {
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 300) {
-                backToTopButton.classList.remove('hidden');
-            } else {
-                backToTopButton.classList.add('hidden');
-            }
-        });
-
-        backToTopButton.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-    }
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 300) {
+            backToTopButton.classList.remove('hidden');
+        } else {
+            backToTopButton.classList.add('hidden');
+        }
+    });
+    backToTopButton.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 }
 
 /**
@@ -117,5 +105,4 @@ async function initializeApp() {
     }
 }
 
-// Inicia a aplicação quando o DOM estiver pronto.
 document.addEventListener('DOMContentLoaded', initializeApp);
