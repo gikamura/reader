@@ -21,8 +21,9 @@ export function getInitialState() {
         currentPage: 1,
         searchQuery: '',
         activeTab: 'home',
-        activeTypeFilter: 'all', // Filtro por tipo
-        activeStatusFilter: 'all', // Filtro por status
+        activeTypeFilter: 'all',
+        activeStatusFilter: 'all',
+        librarySortOrder: 'title', // Ordenação da biblioteca
         isLoading: true,
         error: null,
     };
