@@ -15,6 +15,7 @@ export function getDOM() {
             paginationControls: document.getElementById('pagination-controls'),
             notification: document.getElementById('notification'),
             typeFilterContainer: document.getElementById('type-filter-container'),
+            sortContainer: document.getElementById('sort-container'),
         };
     }
     return dom;
@@ -35,6 +36,16 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
+// --- Funções de Criação de Componentes ---
+
+const createCardMetadata = (icon, title, value) => {
+    return `
+    <div class="flex items-center gap-1.5 text-gray-300 truncate" title="${title}: ${value}">
+        ${icon}
+        <span class="truncate">${value}</span>
+    </div>`;
+};
+
 const createCardHTML = (data, isFavorite) => {
     // Ícones para metadados
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
@@ -50,33 +61,29 @@ const createCardHTML = (data, isFavorite) => {
     const chapterCount = data.chapterCount || 'N/A';
 
     return `
-    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl" style="height: 16rem;">
+    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
             
             <div class="w-1/3 flex-shrink-0 bg-gray-900">
-                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
+                <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
             </div>
 
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <div class="h-10"></div> 
 
-                <p class="text-sm text-gray-400 leading-snug line-clamp-4 flex-grow" style="-webkit-box-orient: vertical;" title="${description}">
-                    ${description}
-                </p>
+                <div class="relative flex-grow">
+                     <p class="text-sm text-gray-400 leading-snug line-clamp-4 flex-grow" style="-webkit-box-orient: vertical;">
+                        ${description}
+                    </p>
+                    <div class="absolute inset-0 bg-gray-800 p-2 text-sm text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-auto pointer-events-none rounded">
+                        ${description}
+                    </div>
+                </div>
                 
                 <div class="mt-auto pt-3 border-t border-gray-700 text-xs flex items-center justify-start space-x-4 overflow-hidden">
-                    <div class="flex items-center gap-1.5 text-gray-300 truncate" title="Autor: ${author}">
-                        ${iconUser}
-                        <span class="truncate">${author}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5 text-gray-300 truncate" title="Artista: ${artist}">
-                        ${iconPaintBrush}
-                        <span class="truncate">${artist}</span>
-                    </div>
-                     <div class="flex items-center gap-1.5 text-gray-300 truncate" title="Capítulos: ${chapterCount}">
-                        ${iconBookOpen}
-                        <span class="truncate">${chapterCount}</span>
-                    </div>
+                    ${createCardMetadata(iconUser, 'Autor', author)}
+                    ${createCardMetadata(iconPaintBrush, 'Artista', artist)}
+                    ${createCardMetadata(iconBookOpen, 'Capítulos', chapterCount)}
                 </div>
             </div>
 
@@ -98,10 +105,18 @@ const createCardHTML = (data, isFavorite) => {
     </div>`;
 };
 
+// --- Funções de Renderização ---
 
 const renderCards = (container, cardDataList, favoritesSet) => {
+    const { activeTab } = store.getState();
     if (!cardDataList || cardDataList.length === 0) {
-        container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>Nenhum item encontrado.</p></div>`;
+        let message = 'Nenhum item encontrado.';
+        if (activeTab === 'favorites') {
+            message = 'Você ainda não adicionou nenhum favorito. Clique no coração ♡ em uma obra para adicioná-la aqui.';
+        } else if (activeTab === 'library') {
+            message = 'Nenhum resultado para a sua busca. Tente outros termos.';
+        }
+        container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>${message}</p></div>`;
         return;
     }
     container.innerHTML = cardDataList.map(data => createCardHTML(data, favoritesSet.has(data.url))).join('');
@@ -143,6 +158,7 @@ export function renderApp() {
     const isLibraryActive = state.activeTab === 'library';
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
     dom.typeFilterContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.sortContainer.classList.toggle('hidden', !isLibraryActive);
 
     if (isLibraryActive) {
         dom.typeFilterContainer.querySelectorAll('.type-filter-btn').forEach(btn => {
@@ -165,8 +181,20 @@ export function renderApp() {
                 .filter(m => {
                     if (state.activeTypeFilter === 'all') return true;
                     return m.type === state.activeTypeFilter;
-                })
-                .sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+                });
+            
+            // Lógica de Ordenação
+            filteredLibrary.sort((a, b) => {
+                switch (state.librarySortOrder) {
+                    case 'latest':
+                        return b.lastUpdated - a.lastUpdated;
+                    case 'status':
+                        return (a.status || '').localeCompare(b.status || '');
+                    case 'title':
+                    default:
+                        return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+                }
+            });
             
             totalPaginationItems = filteredLibrary.length;
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
