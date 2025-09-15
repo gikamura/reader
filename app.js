@@ -43,17 +43,46 @@ function setupEventListeners() {
         });
     }
 
+    // Listener para o seletor de ordenação
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', (e) => {
+            store.setLibrarySortOrder(e.target.value);
+        });
+    }
+
     // Listener delegado para favoritos e botão de recarregar
     document.body.addEventListener('click', (e) => {
         const favoriteBtn = e.target.closest('.favorite-btn');
         if (favoriteBtn) {
             store.toggleFavorite(favoriteBtn.dataset.url);
+            // Adiciona classe para animação de "pulso"
+            favoriteBtn.classList.add('pulsing');
+            favoriteBtn.addEventListener('animationend', () => {
+                favoriteBtn.classList.remove('pulsing');
+            }, { once: true });
         }
 
         if (e.target.matches('#reload-page-btn')) {
             window.location.reload();
         }
     });
+
+    // Listener para o botão "Voltar ao Topo"
+    const backToTopButton = document.getElementById('back-to-top');
+    if (backToTopButton) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTopButton.classList.remove('hidden');
+            } else {
+                backToTopButton.classList.add('hidden');
+            }
+        });
+
+        backToTopButton.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
 }
 
 /**
