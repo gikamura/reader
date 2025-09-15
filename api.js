@@ -2,7 +2,6 @@ import { getMangaCache, setMangaCache, getMangaCacheVersion, setMangaCacheVersio
 import { INDEX_URL, PROXIES } from './constants.js';
 
 // --- Lógica de Rede ---
-
 const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
     const { timeout } = options;
     const controller = new AbortController();
@@ -16,7 +15,6 @@ const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
 };
 
 // --- Lógica de Processamento de Dados ---
-
 const b64DecodeUnicode = (str) => {
     return decodeURIComponent(atob(str).split('').map((c) => {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -50,7 +48,6 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
             !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
         
-        // --- MUDANÇA: Usamos a URL da imagem diretamente ---
         const imageUrl = preFetchedData.cover_url 
             ? preFetchedData.cover_url 
             : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
@@ -59,7 +56,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             url: chapterUrl,
             title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            imageUrl: imageUrl, // Atribui a URL diretamente
+            imageUrl: imageUrl,
             author: data.author,
             artist: data.artist,
             genres: data.genres,
@@ -74,6 +71,37 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         return { url: chapterUrl, title: preFetchedData.title || 'Falha ao Carregar', description: error.message, imageUrl: 'https://placehold.co/256x384/1f2937/ef4444?text=Erro', error: true };
     }
 };
+
+// --- NOVA FUNÇÃO PARA PROCESSAMENTO EM LOTES ---
+async function processInBatches(items, batchSize, delay, updateStatus) {
+    let results = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        const batchPromises = batch.map(mangaSeries => {
+            const representativeChapter = mangaSeries.chapters[0];
+            if (!representativeChapter || !representativeChapter.url) {
+                console.warn('Série sem capítulos ou URL válida:', mangaSeries.title);
+                return null;
+            }
+            const preFetchedData = {
+                title: mangaSeries.title,
+                cover_url: representativeChapter.cover_url || null,
+                type: representativeChapter.type || null
+            };
+            return processMangaUrl(representativeChapter.url, preFetchedData);
+        }).filter(p => p !== null);
+
+        const batchResults = await Promise.all(batchPromises);
+        results = results.concat(batchResults);
+
+        updateStatus(`Processando ${results.length} de ${items.length} obras...`);
+        
+        if (i + batchSize < items.length) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    return results;
+}
 
 export async function fetchAndProcessMangaData(updateStatus) {
     updateStatus('Verificando por atualizações...');
@@ -96,24 +124,10 @@ export async function fetchAndProcessMangaData(updateStatus) {
     updateStatus('Nova versão encontrada! Atualizando o catálogo...');
     clearMangaCache();
 
-    const mangaDetailsPromises = Object.values(indexData.mangas).map(mangaSeries => {
-        const representativeChapter = mangaSeries.chapters[0];
-        if (!representativeChapter || !representativeChapter.url) {
-            console.warn('Série sem capítulos ou URL válida:', mangaSeries.title);
-            return null;
-        }
-
-        const preFetchedData = {
-            title: mangaSeries.title,
-            cover_url: representativeChapter.cover_url || null,
-            type: representativeChapter.type || null
-        };
-
-        return processMangaUrl(representativeChapter.url, preFetchedData);
-    }).filter(p => p !== null);
-
-    updateStatus(`Processando ${mangaDetailsPromises.length} obras...`);
-    const allMangaResults = await Promise.all(mangaDetailsPromises);
+    const allMangaSeries = Object.values(indexData.mangas);
+    
+    // Processa em lotes de 50, com uma pausa de 1 segundo (1000ms) entre eles.
+    const allMangaResults = await processInBatches(allMangaSeries, 50, 1000, updateStatus);
     
     const allManga = allMangaResults.filter(m => m && !m.error);
 
