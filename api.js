@@ -53,17 +53,17 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         decodedPath = decodedPath.replace('/refs/heads/', '/');
         const jsonUrl = `https://raw.githubusercontent.com/${decodedPath}`;
 
-        const response = await fetchWithTimeout(jsonUrl);
+        // --- ALTERAÇÃO PRINCIPAL AQUI ---
+        // Trocamos fetchWithTimeout por fetchViaProxies para evitar bloqueio do GitHub.
+        const response = await fetchViaProxies(jsonUrl);
+        // --- FIM DA ALTERAÇÃO ---
+        
         if (!response.ok) throw new Error(`Status: ${response.status}`);
         const data = await response.json();
         
         const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
             !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
 
-        // --- LÓGICA DA IMAGEURL CORRIGIDA ---
-        // 1. Prioriza a cover_url (hotlink, sem proxy).
-        // 2. Se não existir, usa a data.cover do gist (com proxy, como fallback).
-        // 3. Se nenhuma existir, usa o placeholder.
         const imageUrl = preFetchedData.cover_url 
             ? preFetchedData.cover_url 
             : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
@@ -72,7 +72,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             url: chapterUrl,
             title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            imageUrl: imageUrl, // Usa a variável com a lógica corrigida
+            imageUrl: imageUrl,
             author: data.author,
             artist: data.artist,
             genres: data.genres,
@@ -94,6 +94,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
 export async function fetchAndProcessMangaData(updateStatus) {
     updateStatus('Verificando por atualizações...');
     
+    // O índice principal pode ser buscado diretamente, pois é um único pedido.
     const response = await fetchWithTimeout(INDEX_URL);
     if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
     const indexData = await response.json();
