@@ -129,8 +129,11 @@ export async function fetchAndProcessMangaData(updateStatus) {
     }).filter(p => p !== null);
 
     updateStatus(`Processando ${mangaDetailsPromises.length} obras...`);
-    const allManga = await Promise.all(mangaDetailsPromises);
+    const allMangaResults = await Promise.all(mangaDetailsPromises);
     
+    // Filtra obras que resultaram em erro antes de salvar no cache
+    const allManga = allMangaResults.filter(m => m && !m.error);
+
     setMangaCache(allManga);
     setMangaCacheVersion(remoteVersion);
     
