@@ -2,7 +2,7 @@ export const ITEMS_PER_PAGE = 21;
 export const CACHE_KEY = 'mangaCatalogCache';
 export const CACHE_VERSION_KEY = 'mangaCatalogVersion';
 export const FAVORITES_KEY = 'mangaFavorites';
-export const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas
+export const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 horas
 export const INDEX_URL = 'https://raw.githubusercontent.com/Jhoorodre/data_gk/refs/heads/main/hub/index.json';
 export const PROXIES = [
     'https://api.allorigins.win/raw?url=', 
@@ -22,6 +22,7 @@ export function getInitialState() {
         searchQuery: '',
         activeTab: 'home',
         activeTypeFilter: 'all', // Filtro por tipo
+        librarySortOrder: 'title', // Ordenação da biblioteca
         isLoading: true,
         error: null,
     };
