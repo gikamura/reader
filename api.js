@@ -15,17 +15,30 @@ const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
     }
 };
 
-// A função fetchViaProxies não será mais usada para os detalhes, mas pode ser útil para as imagens.
-const fetchViaProxies = async (targetUrl) => {
-    for (const proxy of PROXIES) {
-        try {
-            const response = await fetchWithTimeout(`${proxy}${encodeURIComponent(targetUrl)}`);
-            if (response.ok) return response;
-        } catch (error) {
-            console.warn(`Proxy ${proxy} falhou para ${targetUrl}:`, error);
-        }
+// --- NOVA FUNÇÃO PARA CONVERTER IMAGEM PARA BASE64 ---
+const imageUrlToBase64 = async (url) => {
+    if (!url || url.includes('placehold.co')) {
+        // Retorna a URL do placeholder diretamente, sem tentar converter.
+        return 'https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';
     }
-    throw new Error(`Todos os proxies falharam para ${targetUrl}`);
+    try {
+        // Usa um proxy para evitar problemas de CORS com as imagens
+        const proxyUrl = `${PROXIES[0]}${encodeURIComponent(url)}`;
+        const response = await fetchWithTimeout(proxyUrl);
+        if (!response.ok) throw new Error(`Falha ao buscar imagem: ${response.statusText}`);
+        
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error(`Não foi possível converter a imagem ${url} para Base64:`, error);
+        // Retorna uma imagem de erro em caso de falha
+        return 'https://placehold.co/256x384/1f2937/ef4444?text=Erro+Img';
+    }
 };
 
 // --- Lógica de Processamento de Dados ---
@@ -45,36 +58,34 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         let b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
         while (b64.length % 4) { b64 += '='; }
         
-        let decodedPath;
-        try {
-            decodedPath = b64DecodeUnicode(b64);
-        } catch(e) { throw new Error("Falha na decodificação Base64."); }
+        let decodedPath = b64DecodeUnicode(b64);
 
         if (decodedPath.startsWith('raw/')) decodedPath = decodedPath.substring(4);
         decodedPath = decodedPath.replace('/refs/heads/', '/');
-        const jsonUrl = `https://raw.githubusercontent.com/${decodedPath}`;
-
-        // --- ALTERAÇÃO PRINCIPAL AQUI ---
-        // Voltamos a usar o fetch direto, sem proxy, como solicitado.
-        const response = await fetchWithTimeout(jsonUrl);
-        // --- FIM DA ALTERAÇÃO ---
         
+        const pathSegments = decodedPath.split('/');
+        const encodedPath = pathSegments.map(segment => encodeURIComponent(segment)).join('/');
+        
+        const jsonUrl = `https://raw.githubusercontent.com/${encodedPath}`;
+
+        const response = await fetchWithTimeout(jsonUrl);
         if (!response.ok) throw new Error(`Status: ${response.status}`);
+        
         const data = await response.json();
         
         const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
             !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
 
-        // A imagem de capa ainda pode se beneficiar do proxy como fallback
-        const imageUrl = preFetchedData.cover_url 
-            ? preFetchedData.cover_url 
-            : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
+        const originalImageUrl = preFetchedData.cover_url || (data.cover ? data.cover : null);
+        
+        // Converte a URL da imagem para Base64
+        const base64Image = await imageUrlToBase64(originalImageUrl);
 
         return {
             url: chapterUrl,
             title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            imageUrl: imageUrl,
+            imageUrl: base64Image, // Usa a imagem em Base64
             author: data.author,
             artist: data.artist,
             genres: data.genres,
@@ -90,9 +101,6 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
     }
 };
 
-/**
- * Orquestra a busca de dados, verificando a versão para usar o cache de forma inteligente.
- */
 export async function fetchAndProcessMangaData(updateStatus) {
     updateStatus('Verificando por atualizações...');
     
