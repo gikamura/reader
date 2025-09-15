@@ -8,16 +8,12 @@ const subscribers = new Set();
 
 /**
  * O objeto 'store' é a única fonte de verdade para o estado da aplicação.
- * Ele contém o estado e os métodos (ações) para modificá-lo.
- * Após cada modificação, ele notifica todos os 'subscribers'.
  */
 export const store = {
-    // Ação para se inscrever nas mudanças de estado.
     subscribe(callback) {
         subscribers.add(callback);
     },
 
-    // Ação para obter uma cópia segura do estado atual.
     getState() {
         return { ...state };
     },
@@ -64,11 +60,11 @@ export const store = {
         notify();
     },
     
-    setLibrarySortOrder(order) {
-        state.librarySortOrder = order;
+    setActiveStatusFilter(status) {
+        state.activeStatusFilter = status;
         notify();
     },
-
+    
     setLoading(isLoading) {
         state.isLoading = isLoading;
         notify();
@@ -80,16 +76,10 @@ export const store = {
     }
 };
 
-/**
- * Notifica todos os subscribers que o estado foi alterado.
- */
 function notify() {
     subscribers.forEach(callback => callback());
 }
 
-/**
- * Inicializa o store com dados do cache.
- */
 export function initializeStore() {
     const favorites = loadFavoritesFromCache();
     store.setFavorites(favorites);
