@@ -16,6 +16,7 @@ export function getDOM() {
             typeFilterContainer: document.getElementById('type-filter-container'),
             statusFilterContainer: document.getElementById('status-filter-container'),
             sortContainer: document.getElementById('sort-container'),
+            libraryControls: document.getElementById('library-controls'), // Elemento adicionado
         };
     }
     return dom;
@@ -124,11 +125,12 @@ export function renderApp() {
     }
     
     dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
+    
+    // --- LÓGICA DE VISIBILIDADE ATUALIZADA ---
     const isLibraryActive = state.activeTab === 'library';
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
-    dom.typeFilterContainer.classList.toggle('hidden', !isLibraryActive);
-    dom.statusFilterContainer.classList.toggle('hidden', !isLibraryActive);
-    dom.sortContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.libraryControls.classList.toggle('hidden', !isLibraryActive);
+    // --- FIM DA LÓGICA ATUALIZADA ---
 
     if (isLibraryActive) {
         dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter));
