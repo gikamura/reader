@@ -1,7 +1,6 @@
 import { store } from './store.js';
 import { ITEMS_PER_PAGE } from './constants.js';
 
-// Centraliza todos os seletores de DOM para fácil manutenção.
 let dom = null;
 export function getDOM() {
     if (!dom) {
@@ -16,14 +15,12 @@ export function getDOM() {
             notification: document.getElementById('notification'),
             typeFilterContainer: document.getElementById('type-filter-container'),
             statusFilterContainer: document.getElementById('status-filter-container'),
+            sortContainer: document.getElementById('sort-container'),
         };
     }
     return dom;
 }
 
-/**
- * Exibe uma notificação na tela por um curto período.
- */
 let notificationTimeout;
 export function showNotification(message, duration = 4000) {
     const { notification } = getDOM();
@@ -35,8 +32,6 @@ export function showNotification(message, duration = 4000) {
         notification.classList.add('translate-y-20', 'opacity-0');
     }, duration);
 }
-
-// --- Funções de Criação de Componentes ---
 
 const createCardMetadata = (icon, title, value) => {
     return `
@@ -92,17 +87,10 @@ const createCardHTML = (data, isFavorite) => {
     </div>`;
 };
 
-// --- Funções de Renderização ---
-
 const renderCards = (container, cardDataList, favoritesSet) => {
     const { activeTab } = store.getState();
     if (!cardDataList || cardDataList.length === 0) {
-        let message = 'Nenhum item encontrado.';
-        if (activeTab === 'favorites') {
-            message = 'Você ainda não adicionou nenhum favorito. Clique no coração ♡ em uma obra para adicioná-la aqui.';
-        } else if (activeTab === 'library') {
-            message = 'Nenhum resultado para a sua busca. Tente outros termos.';
-        }
+        let message = activeTab === 'favorites' ? 'Você ainda não adicionou nenhum favorito. Clique no coração ♡ em uma obra para adicioná-la aqui.' : 'Nenhum resultado para a sua busca. Tente outros termos.';
         container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>${message}</p></div>`;
         return;
     }
@@ -140,14 +128,11 @@ export function renderApp() {
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
     dom.typeFilterContainer.classList.toggle('hidden', !isLibraryActive);
     dom.statusFilterContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.sortContainer.classList.toggle('hidden', !isLibraryActive);
 
     if (isLibraryActive) {
-        dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter);
-        });
-        dom.statusFilterContainer.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.status === state.activeStatusFilter);
-        });
+        dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter));
+        dom.statusFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.status === state.activeStatusFilter));
     }
 
     let itemsToDisplay = [];
@@ -160,18 +145,17 @@ export function renderApp() {
                 .slice(0, 20);
             break;
         case 'library':
-            const filteredLibrary = state.allManga
+            let filteredLibrary = state.allManga
                 .filter(m => m.title.toLowerCase().includes(state.searchQuery.toLowerCase()))
-                .filter(m => {
-                    if (state.activeTypeFilter === 'all') return true;
-                    return m.type === state.activeTypeFilter;
-                })
-                .filter(m => {
-                    if (state.activeStatusFilter === 'all') return true;
-                    // Normaliza o status para comparação (ex: 'Ongoing' e 'ongoing' serem iguais)
-                    return (m.status || '').toLowerCase() === state.activeStatusFilter;
-                })
-                .sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+                .filter(m => state.activeTypeFilter === 'all' || m.type === state.activeTypeFilter)
+                .filter(m => state.activeStatusFilter === 'all' || (m.status || '').toLowerCase() === state.activeStatusFilter);
+
+            filteredLibrary.sort((a, b) => {
+                if (state.librarySortOrder === 'latest') {
+                    return b.lastUpdated - a.lastUpdated;
+                }
+                return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+            });
             
             totalPaginationItems = filteredLibrary.length;
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
