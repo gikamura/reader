@@ -3,7 +3,7 @@ export const CACHE_KEY = 'mangaCatalogCache';
 export const CACHE_VERSION_KEY = 'mangaCatalogVersion';
 export const FAVORITES_KEY = 'mangaFavorites';
 export const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 horas
-export const INDEX_URL = 'https://raw.githubusercontent.com/Jhoorodre/data_gk/refs/heads/main/hub/index.json';
+export const INDEX_URL = 'https://raw.githubusercontent.com/admingikamura/data/refs/heads/main/hub/index.json';
 export const PROXIES = [
     'https://api.allorigins.win/raw?url=', 
     'https://thingproxy.freeboard.io/fetch/', 
@@ -28,3 +28,4 @@ export function getInitialState() {
         error: null,
     };
 }
+
