@@ -36,7 +36,7 @@
         .tab:not(.active) {
             border-color: transparent;
         }
-        .type-filter-btn.active {
+        .filter-btn.active {
             background-color: #3b82f6;
             color: #ffffff;
         }
@@ -73,18 +73,17 @@
                     </div>
                     
                     <div id="type-filter-container" class="bg-gray-900 rounded-lg p-1 space-x-1 hidden">
-                        <button data-type="all" class="type-filter-btn active px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Todos</button>
-                        <button data-type="manga" class="type-filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manga</button>
-                        <button data-type="manhwa" class="type-filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manhwa</button>
-                        <button data-type="manhua" class="type-filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manhua</button>
+                        <button data-type="all" class="filter-btn active px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Todos</button>
+                        <button data-type="manga" class="filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manga</button>
+                        <button data-type="manhwa" class="filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manhwa</button>
+                        <button data-type="manhua" class="filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Manhua</button>
                     </div>
 
-                    <div id="sort-container" class="w-full sm:w-auto hidden">
-                        <select id="sort-select" class="w-full sm:w-auto bg-gray-700 text-gray-200 border border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                            <option value="title">Ordenar por Título (A-Z)</option>
-                            <option value="latest">Ordenar por Mais Recente</option>
-                            <option value="status">Ordenar por Status</option>
-                        </select>
+                    <div id="status-filter-container" class="bg-gray-900 rounded-lg p-1 space-x-1 hidden">
+                        <button data-status="all" class="filter-btn active px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Todos</button>
+                        <button data-status="ongoing" class="filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Andamento</button>
+                        <button data-status="completed" class="filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Completo</button>
+                        <button data-status="hiatus" class="filter-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700 transition-colors">Pausado</button>
                     </div>
                 </div>
             </div>
