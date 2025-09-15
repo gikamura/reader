@@ -15,32 +15,6 @@ const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
     }
 };
 
-// --- NOVA FUNÇÃO PARA CONVERTER IMAGEM PARA BASE64 ---
-const imageUrlToBase64 = async (url) => {
-    if (!url || url.includes('placehold.co')) {
-        // Retorna a URL do placeholder diretamente, sem tentar converter.
-        return 'https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';
-    }
-    try {
-        // Usa um proxy para evitar problemas de CORS com as imagens
-        const proxyUrl = `${PROXIES[0]}${encodeURIComponent(url)}`;
-        const response = await fetchWithTimeout(proxyUrl);
-        if (!response.ok) throw new Error(`Falha ao buscar imagem: ${response.statusText}`);
-        
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-    } catch (error) {
-        console.error(`Não foi possível converter a imagem ${url} para Base64:`, error);
-        // Retorna uma imagem de erro em caso de falha
-        return 'https://placehold.co/256x384/1f2937/ef4444?text=Erro+Img';
-    }
-};
-
 // --- Lógica de Processamento de Dados ---
 
 const b64DecodeUnicode = (str) => {
@@ -75,17 +49,17 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         
         const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
             !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
-
-        const originalImageUrl = preFetchedData.cover_url || (data.cover ? data.cover : null);
         
-        // Converte a URL da imagem para Base64
-        const base64Image = await imageUrlToBase64(originalImageUrl);
+        // --- MUDANÇA: Usamos a URL da imagem diretamente ---
+        const imageUrl = preFetchedData.cover_url 
+            ? preFetchedData.cover_url 
+            : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
 
         return {
             url: chapterUrl,
             title: preFetchedData.title || data.title || 'N/A',
             description: data.description || '',
-            imageUrl: base64Image, // Usa a imagem em Base64
+            imageUrl: imageUrl, // Atribui a URL diretamente
             author: data.author,
             artist: data.artist,
             genres: data.genres,
