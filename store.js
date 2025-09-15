@@ -64,6 +64,11 @@ export const store = {
         notify();
     },
     
+    setLibrarySortOrder(order) {
+        state.librarySortOrder = order;
+        notify();
+    },
+
     setLoading(isLoading) {
         state.isLoading = isLoading;
         notify();
