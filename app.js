@@ -14,7 +14,6 @@ function setupEventListeners() {
         }
     });
 
-    // Debounce para a busca
     let searchTimeout;
     dom.searchInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
@@ -31,7 +30,15 @@ function setupEventListeners() {
         }
     });
 
-    // Delegação de eventos para os filtros
+    // Listener para o seletor de ordenação
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', (e) => {
+            store.setLibrarySortOrder(e.target.value);
+        });
+    }
+
+    // Delegação de eventos para filtros e favoritos
     document.body.addEventListener('click', (e) => {
         const typeButton = e.target.closest('#type-filter-container .filter-btn');
         if (typeButton) {
@@ -59,7 +66,6 @@ function setupEventListeners() {
         }
     });
 
-    // Botão "Voltar ao Topo"
     const backToTopButton = document.getElementById('back-to-top');
     window.addEventListener('scroll', () => {
         if (window.scrollY > 300) {
