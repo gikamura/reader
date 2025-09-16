@@ -14,8 +14,8 @@
             scroll-behavior: smooth;
         }
         .loader {
-            border: 4px solid #4a5568; /*cinza*/
-            border-top: 4px solid #3b82f6; /*azul*/
+            border: 4px solid #4a5568;
+            border-top: 4px solid #3b82f6;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -25,36 +25,14 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        /* Estilos para as Abas de Navegação */
-        .tab {
-            color: #d1d5db; /* cinza claro */
-            border: 1px solid transparent;
-        }
-        .tab:hover {
-            background-color: #4b5563; /* cinza mais claro no hover */
-            color: #ffffff;
-        }
         .tab.active {
-            background-color: #3b82f6; /* azul */
-            color: #ffffff;
-            font-weight: 500;
-        }
-
-        /* Estilos para os Botões de Filtro */
-        .filter-btn {
-            color: #d1d5db; /* cinza claro */
-        }
-        .filter-btn:hover {
-            background-color: #4b556350; /* cinza transparente no hover */
+            background-color: #3b82f6;
             color: #ffffff;
         }
         .filter-btn.active {
-            background-color: #3b82f6; /* azul */
+            background-color: #3b82f6;
             color: #ffffff;
         }
-        
-        /* Animação de pulsar para o botão de favorito */
         .favorite-btn.pulsing svg {
             animation: pulse 0.5s ease-in-out;
         }
@@ -75,13 +53,11 @@
         </header>
 
         <div class="bg-[#1a1a1a]/80 backdrop-blur-md rounded-lg shadow-xl p-4 mb-6 sticky top-4 z-30 border border-neutral-800/60">
-            
             <div class="flex flex-wrap justify-between items-center gap-4">
-                
                 <nav id="tabs" class="flex items-center bg-[#050505]/50 rounded-lg p-1 space-x-1 border border-neutral-700">
-                    <button data-tab="home" class="tab active px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200">Início</button>
-                    <button data-tab="library" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200">Biblioteca</button>
-                    <button data-tab="favorites" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200">Favoritos</button>
+                    <button data-tab="home" class="tab active px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700">Início</button>
+                    <button data-tab="library" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700">Biblioteca</button>
+                    <button data-tab="favorites" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700">Favoritos</button>
                 </nav>
 
                 <div id="search-container" class="relative w-full sm:w-auto hidden">
@@ -95,33 +71,30 @@
             </div>
 
             <div id="library-controls" class="pt-4 mt-4 border-t border-neutral-800/60 space-y-3 hidden">
-
                 <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
                     <div id="type-filter-container" class="flex items-center gap-2">
                         <span class="text-sm font-medium text-gray-400">Tipo:</span>
                         <div class="flex items-center bg-[#050505]/50 rounded-lg p-1 space-x-1 border border-neutral-700">
-                            <button data-type="all" class="filter-btn active px-3 py-1 text-sm rounded-md transition-colors">Todos</button>
-                            <button data-type="manga" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors">Manga</button>
-                            <button data-type="manhwa" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors">Manhwa</button>
-                            <button data-type="manhua" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors">Manhua</button>
+                            <button data-type="all" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Todos</button>
+                            <button data-type="manga" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Manga</button>
+                            <button data-type="manhwa" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Manhwa</button>
+                            <button data-type="manhua" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Manhua</button>
                         </div>
                     </div>
-
                     <div id="status-filter-container" class="flex items-center gap-2">
                         <span class="text-sm font-medium text-gray-400">Status:</span>
                         <div class="flex items-center bg-[#050505]/50 rounded-lg p-1 space-x-1 border border-neutral-700">
-                            <button data-status="all" class="filter-btn active px-3 py-1 text-sm rounded-md transition-colors">Todos</button>
-                            <button data-status="ongoing" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors">Andamento</button>
-                            <button data-status="completed" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors">Completo</button>
-                            <button data-status="hiatus" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors">Pausado</button>
+                            <button data-status="all" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Todos</button>
+                            <button data-status="ongoing" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Andamento</button>
+                            <button data-status="completed" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Completo</button>
+                            <button data-status="hiatus" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Pausado</button>
                         </div>
                     </div>
-
                     <div id="sort-container" class="flex items-center gap-2 ml-auto">
                          <span class="text-sm font-medium text-gray-400">Ordenar por:</span>
                         <select id="sort-select" class="bg-neutral-800 text-gray-200 border border-neutral-700 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-colors">
                             <option value="title">Título (A-Z)</option>
-                            <option value="latest">Mais Recente</option>
+                            <option value="latest">Ordenar por Mais Recente</option>
                         </select>
                     </div>
                 </div>
@@ -132,9 +105,7 @@
             <div id="main-loader" class="flex justify-center items-center py-16">
                 <div class="loader"></div>
             </div>
-
             <div id="content-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-            
             <div id="pagination-controls" class="flex justify-center items-center mt-8 space-x-2"></div>
         </main>
 
@@ -154,6 +125,5 @@
     </button>
 
     <script type="module" src="app.js"></script>
-
 </body>
 </html>
