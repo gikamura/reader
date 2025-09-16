@@ -16,6 +16,7 @@ export function getDOM() {
             typeFilterContainer: document.getElementById('type-filter-container'),
             statusFilterContainer: document.getElementById('status-filter-container'),
             sortContainer: document.getElementById('sort-container'),
+            libraryControls: document.getElementById('library-controls'),
         };
     }
     return dom;
@@ -54,18 +55,17 @@ const createCardHTML = (data, isFavorite) => {
     const chapterCount = data.chapterCount || 'N/A';
 
     return `
-    <div class="relative bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
+    <div class="relative bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
-            <div class="w-1/3 flex-shrink-0 bg-gray-900">
+            <div class="w-1/3 flex-shrink-0 bg-[#050505]">
                 <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
             </div>
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <div class="h-10"></div> 
-                <div class="relative flex-grow">
-                     <p class="text-sm text-gray-400 leading-snug line-clamp-4 flex-grow" style="-webkit-box-orient: vertical;">${description}</p>
-                    <div class="absolute inset-0 bg-gray-800 p-2 text-sm text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-auto pointer-events-none rounded">${description}</div>
+                <div class="flex-grow">
+                    <p class="text-sm text-gray-400 leading-snug line-clamp-4" style="-webkit-box-orient: vertical;">${description}</p>
                 </div>
-                <div class="mt-auto pt-3 border-t border-gray-700 text-xs flex items-center justify-start space-x-4 overflow-hidden">
+                <div class="mt-auto pt-3 border-t border-neutral-800 text-xs flex items-center justify-start space-x-4 overflow-hidden">
                     ${createCardMetadata(iconUser, 'Autor', author)}
                     ${createCardMetadata(iconPaintBrush, 'Artista', artist)}
                     ${createCardMetadata(iconBookOpen, 'Capítulos', chapterCount)}
@@ -75,11 +75,11 @@ const createCardHTML = (data, isFavorite) => {
                  <h3 class="text-lg font-bold truncate text-white" title="${data.title}">${data.title}</h3>
             </div>
             <div class="absolute bottom-2 left-2 flex items-center gap-2 z-10">
-                 <span class="bg-gray-900/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
+                 <span class="bg-[#050505]/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
                  <span class="bg-blue-600 text-white font-semibold px-2 py-1 rounded-md text-xs">${type}</span>
             </div>
         </a>
-        <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-gray-900/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-20" data-url="${data.url}" title="Favoritar">
+        <button class="favorite-btn absolute top-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:text-red-500 backdrop-blur-sm transition-colors z-20" data-url="${data.url}" title="Favoritar">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" class="${isFavorite ? 'text-red-500' : 'text-white/80'}" clip-rule="evenodd" />
             </svg>
@@ -106,7 +106,7 @@ const renderPagination = (controlsContainer, totalItems, currentPage) => {
     let buttons = '';
     for (let i = 1; i <= totalPages; i++) {
         const isActive = i === currentPage;
-        buttons += `<button data-page="${i}" class="pagination-btn px-4 py-2 text-sm font-medium rounded-md ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600'}">${i}</button>`;
+        buttons += `<button data-page="${i}" class="pagination-btn px-4 py-2 text-sm font-medium rounded-md ${isActive ? 'bg-blue-600 text-white' : 'bg-neutral-700 hover:bg-neutral-600'}">${i}</button>`;
     }
     controlsContainer.innerHTML = buttons;
 };
@@ -117,18 +117,17 @@ export function renderApp() {
 
     dom.mainLoader.classList.toggle('hidden', !state.isLoading);
     if (state.error) {
-        dom.contentContainer.innerHTML = `<div class="col-span-full text-center text-red-400 p-8 bg-gray-800 rounded-lg space-y-4"><p>${state.error}</p><button id="reload-page-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">Atualizar Página</button></div>`;
+        dom.contentContainer.innerHTML = `<div class="col-span-full text-center text-red-400 p-8 bg-[#1a1a1a] rounded-lg space-y-4"><p>${state.error}</p><button id="reload-page-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">Atualizar Página</button></div>`;
         dom.paginationControls.innerHTML = '';
         dom.subtitle.textContent = "Ocorreu um erro";
         return;
     }
     
     dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
+    
     const isLibraryActive = state.activeTab === 'library';
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
-    dom.typeFilterContainer.classList.toggle('hidden', !isLibraryActive);
-    dom.statusFilterContainer.classList.toggle('hidden', !isLibraryActive);
-    dom.sortContainer.classList.toggle('hidden', !isLibraryActive);
+    dom.libraryControls.classList.toggle('hidden', !isLibraryActive);
 
     if (isLibraryActive) {
         dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter));
