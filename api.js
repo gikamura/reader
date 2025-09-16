@@ -72,7 +72,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
     }
 };
 
-// --- NOVA FUNÇÃO PARA PROCESSAMENTO EM LOTES ---
+// --- FUNÇÃO PARA PROCESSAMENTO EM LOTES ---
 async function processInBatches(items, batchSize, delay, updateStatus) {
     let results = [];
     for (let i = 0; i < items.length; i += batchSize) {
@@ -126,8 +126,8 @@ export async function fetchAndProcessMangaData(updateStatus) {
 
     const allMangaSeries = Object.values(indexData.mangas);
     
-    // Processa em lotes de 50, com uma pausa de 1 segundo (1000ms) entre eles.
-    const allMangaResults = await processInBatches(allMangaSeries, 50, 1000, updateStatus);
+    // LINHA ALTERADA: Processa em lotes de 100, com uma pausa de 0.5 segundos (500ms) entre eles.
+    const allMangaResults = await processInBatches(allMangaSeries, 100, 500, updateStatus);
     
     const allManga = allMangaResults.filter(m => m && !m.error);
 
