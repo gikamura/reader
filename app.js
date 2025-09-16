@@ -77,7 +77,47 @@ function setupEventListeners() {
     backToTopButton.addEventListener('click', () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    // --- NOVO CÓDIGO ---
+    // Verifica por atualizações quando o usuário volta para a aba do navegador
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            checkForUpdates();
+        }
+    });
 }
+
+/**
+ * Verifica se há uma nova versão do catálogo e, se houver, atualiza os dados.
+ */
+async function checkForUpdates() {
+    console.log("Verificando por atualizações...");
+    try {
+        // Usamos { cache: 'no-store' } para garantir que estamos sempre pegando a versão mais recente do index
+        const response = await fetch('https://raw.githubusercontent.com/admingikamura/data/refs/heads/main/hub/index.json', { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const indexData = await response.json();
+        const remoteVersion = indexData.metadata.version;
+        const localVersion = localStorage.getItem('mangaCatalogVersion');
+
+        if (remoteVersion && remoteVersion !== localVersion) {
+            console.log(`Nova versão encontrada: ${remoteVersion}. Atualizando...`);
+            showNotification("Um novo catálogo está sendo carregado...", 5000);
+
+            // Reutiliza a lógica principal de busca e processamento
+            const { data: mangaData } = await fetchAndProcessMangaData(() => {});
+
+            store.setAllManga(mangaData); // Atualiza o estado
+            showNotification("O catálogo foi atualizado com sucesso!");
+        } else {
+            console.log("Nenhuma atualização encontrada.");
+        }
+    } catch (error) {
+        console.error("Erro ao verificar atualizações:", error);
+    }
+}
+
 
 /**
  * Função principal de inicialização da aplicação.
