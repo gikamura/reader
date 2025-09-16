@@ -34,16 +34,13 @@ export const store = {
         notify();
     },
 
-    // --- NOVAS FUNÇÕES E ESTADOS ---
     setUpdates(updatesArray) {
-        // Limita a 30 atualizações
         state.updates = updatesArray.slice(0, 30);
         saveUpdatesToCache(state.updates);
         notify();
     },
 
     addUpdates(newUpdates) {
-        // Adiciona novas atualizações no início e mantém o limite de 30
         const updatedList = [...newUpdates, ...state.updates];
         state.updates = updatedList.slice(0, 30);
         saveUpdatesToCache(state.updates);
@@ -55,7 +52,6 @@ export const store = {
         saveSettingsToCache(state.settings);
         notify();
     },
-    // --------------------------------
 
     setCurrentPage(page) {
         state.currentPage = page;
@@ -106,7 +102,6 @@ export function initializeStore() {
     const favorites = loadFavoritesFromCache();
     store.setFavorites(favorites);
     
-    // --- INICIALIZAÇÃO DOS NOVOS DADOS ---
     const settings = loadSettingsFromCache();
     store.setSettings(settings);
 
