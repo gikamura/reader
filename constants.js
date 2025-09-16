@@ -18,6 +18,11 @@ export function getInitialState() {
     return {
         allManga: [],
         favorites: new Set(),
+        updates: [],
+        settings: {
+            notificationsEnabled: true,
+            popupsEnabled: true,
+        },
         currentPage: 1,
         searchQuery: '',
         activeTab: 'home',
@@ -28,4 +33,3 @@ export function getInitialState() {
         error: null,
     };
 }
-
