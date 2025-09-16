@@ -45,7 +45,7 @@
         .notification-popup.show { animation: slideIn 0.5s forwards; }
         .notification-popup.hide { animation: slideOut 0.5s forwards; }
 
-        /* --- ESTILOS PARA OS TOGGLES --- */
+        /* --- ESTILOS PARA OS TOGGLES (COM CORREÇÃO) --- */
         .toggle-bg:after {
             content: '';
             @apply absolute top-0.5 left-0.5 bg-white border border-gray-300 rounded-full h-5 w-5 transition shadow-sm;
@@ -55,6 +55,13 @@
         }
         input:checked + .toggle-bg {
             @apply bg-blue-600;
+        }
+        /* -- AQUI ESTÁ A CORREÇÃO -- */
+        input:disabled + .toggle-bg {
+            @apply bg-neutral-800 cursor-not-allowed;
+        }
+        input:disabled + .toggle-bg:after {
+            @apply bg-neutral-500;
         }
     </style>
 </head>
