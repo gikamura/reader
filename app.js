@@ -1,10 +1,7 @@
 import { initializeStore, store } from './store.js';
 import { fetchAndProcessMangaData } from './api.js';
-import { renderApp, getDOM, showNotification } from './ui.js';
+import { renderApp, getDOM, showNotification, showUpdatePopup } from './ui.js';
 
-/**
- * Anexa os event listeners da aplicação.
- */
 function setupEventListeners() {
     const dom = getDOM();
 
@@ -30,7 +27,6 @@ function setupEventListeners() {
         }
     });
 
-    // Listener para o seletor de ordenação
     const sortSelect = document.getElementById('sort-select');
     if (sortSelect) {
         sortSelect.addEventListener('change', (e) => {
@@ -38,7 +34,6 @@ function setupEventListeners() {
         });
     }
 
-    // Delegação de eventos para filtros e favoritos
     document.body.addEventListener('click', (e) => {
         const typeButton = e.target.closest('#type-filter-container .filter-btn');
         if (typeButton) {
@@ -78,8 +73,14 @@ function setupEventListeners() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // --- NOVO CÓDIGO ---
-    // Verifica por atualizações quando o usuário volta para a aba do navegador
+    dom.notificationsEnabledToggle.addEventListener('change', (e) => {
+        store.setSettings({ notificationsEnabled: e.target.checked });
+    });
+
+    dom.popupsEnabledToggle.addEventListener('change', (e) => {
+        store.setSettings({ popupsEnabled: e.target.checked });
+    });
+
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             checkForUpdates();
@@ -87,44 +88,75 @@ function setupEventListeners() {
     });
 }
 
-/**
- * Verifica se há uma nova versão do catálogo e, se houver, atualiza os dados.
- */
-async function checkForUpdates() {
-    console.log("Verificando por atualizações...");
-    try {
-        // Usamos { cache: 'no-store' } para garantir que estamos sempre pegando a versão mais recente do index
-        const response = await fetch('https://raw.githubusercontent.com/admingikamura/data/refs/heads/main/hub/index.json', { cache: 'no-store' });
-        if (!response.ok) return;
+function findNewChapterUpdates(oldManga, newManga) {
+    const oldMangaMap = new Map(oldManga.map(m => [m.url, m]));
+    const newUpdates = [];
+    
+    const lastCheckTimestamp = parseInt(localStorage.getItem('lastCheckTimestamp') || '0');
 
-        const indexData = await response.json();
-        const remoteVersion = indexData.metadata.version;
-        const localVersion = localStorage.getItem('mangaCatalogVersion');
+    newManga.forEach(manga => {
+        const oldVersion = oldMangaMap.get(manga.url);
+        if (!oldVersion || !manga.chapters) return;
 
-        if (remoteVersion && remoteVersion !== localVersion) {
-            console.log(`Nova versão encontrada: ${remoteVersion}. Atualizando...`);
-            showNotification("Um novo catálogo está sendo carregado...", 5000);
+        const newChaptersInManga = [];
+        for (const chapterKey in manga.chapters) {
+            const newChapter = manga.chapters[chapterKey];
+            const oldChapter = oldVersion.chapters ? oldVersion.chapters[chapterKey] : undefined;
+            const chapterTimestamp = parseInt(newChapter.last_updated) * 1000;
 
-            // Reutiliza a lógica principal de busca e processamento
-            const { data: mangaData } = await fetchAndProcessMangaData(() => {});
-
-            store.setAllManga(mangaData); // Atualiza o estado
-            showNotification("O catálogo foi atualizado com sucesso!");
-        } else {
-            console.log("Nenhuma atualização encontrada.");
+            if (!oldChapter && chapterTimestamp > lastCheckTimestamp) {
+                newChaptersInManga.push({
+                    title: newChapter.title || `Capítulo ${chapterKey}`,
+                    timestamp: chapterTimestamp,
+                });
+            }
         }
+
+        if (newChaptersInManga.length > 0) {
+            newUpdates.push({
+                manga: manga,
+                newChapters: newChaptersInManga.sort((a,b) => b.timestamp - a.timestamp),
+                timestamp: Date.now()
+            });
+        }
+    });
+    
+    return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+async function checkForUpdates() {
+    const { settings, allManga: oldMangaData } = store.getState();
+    if (!settings.notificationsEnabled || oldMangaData.length === 0) {
+        console.log("Notificações desabilitadas ou dados iniciais não carregados.");
+        return;
+    }
+
+    console.log("Verificando por atualizações de capítulos...");
+    try {
+        const { data: newMangaData } = await fetchAndProcessMangaData(() => {});
+        
+        const newUpdates = findNewChapterUpdates(oldMangaData, newMangaData);
+        
+        if (newUpdates.length > 0) {
+            console.log(`${newUpdates.length} obra(s) com novos capítulos.`, newUpdates);
+            store.addUpdates(newUpdates);
+            
+            newUpdates.forEach(update => showUpdatePopup(update));
+
+            store.setAllManga(newMangaData);
+        } else {
+            console.log("Nenhum novo capítulo encontrado.");
+        }
+
+        localStorage.setItem('lastCheckTimestamp', Date.now().toString());
+
     } catch (error) {
-        console.error("Erro ao verificar atualizações:", error);
+        console.error("Erro ao verificar atualizações de capítulos:", error);
     }
 }
 
-
-/**
- * Função principal de inicialização da aplicação.
- */
 async function initializeApp() {
     const dom = getDOM();
-
     initializeStore();
     store.subscribe(renderApp);
     setupEventListeners();
@@ -139,6 +171,7 @@ async function initializeApp() {
         dom.subtitle.textContent = `${mangaData.length} obras no catálogo.`;
 
         if (updated) {
+            localStorage.setItem('lastCheckTimestamp', Date.now().toString());
             showNotification("O catálogo foi atualizado com sucesso!");
         }
 
