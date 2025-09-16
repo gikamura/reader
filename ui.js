@@ -114,7 +114,19 @@ function renderUpdatesTab(state) {
     const dom = getDOM();
     dom.notificationsEnabledToggle.checked = state.settings.notificationsEnabled;
     dom.popupsEnabledToggle.checked = state.settings.popupsEnabled;
+    
+    // Desabilita o toggle de pop-up se as notificações estiverem desligadas
     dom.popupsEnabledToggle.disabled = !state.settings.notificationsEnabled;
+    
+    // --- AQUI ESTÁ A CORREÇÃO LÓGICA ---
+    // Adiciona uma classe na label pai para podermos estilizar o estado desabilitado
+    const popupLabel = dom.popupsEnabledToggle.closest('label');
+    if (dom.popupsEnabledToggle.disabled) {
+        popupLabel.classList.add('disabled');
+    } else {
+        popupLabel.classList.remove('disabled');
+    }
+    // ------------------------------------
 
     if (state.updates.length === 0) {
         dom.updatesList.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhuma atualização recente.</p>`;
