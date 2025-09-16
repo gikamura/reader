@@ -127,7 +127,7 @@ export async function fetchAndProcessMangaData(updateStatus) {
     const allMangaSeries = Object.values(indexData.mangas);
     
     // LINHA ALTERADA: Processa em lotes de 100, com uma pausa de 0.5 segundos (500ms) entre eles.
-    const allMangaResults = await processInBatches(allMangaSeries, 100, 500, updateStatus);
+    const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, updateStatus);
     
     const allManga = allMangaResults.filter(m => m && !m.error);
 
@@ -136,3 +136,4 @@ export async function fetchAndProcessMangaData(updateStatus) {
     
     return { data: allManga, updated: true };
 }
+
