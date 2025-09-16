@@ -1,13 +1,19 @@
 import { initializeStore, store } from './store.js';
 import { fetchAndProcessMangaData } from './api.js';
-import { renderApp, getDOM, showNotification, showUpdatePopup } from './ui.js';
+import { renderApp, getDOM, showNotification, showUpdatePopup, showGroupedUpdatePopup } from './ui.js';
 
 function setupEventListeners() {
     const dom = getDOM();
 
     dom.tabs.addEventListener('click', (e) => {
-        if (e.target.matches('.tab')) {
-            store.setActiveTab(e.target.dataset.tab);
+        const tabButton = e.target.closest('.tab');
+        if (tabButton) {
+            const tabName = tabButton.dataset.tab;
+            store.setActiveTab(tabName);
+            // ATUALIZADO: Marca as atualizações como lidas ao visitar a aba
+            if (tabName === 'updates') {
+                store.markUpdatesAsRead();
+            }
         }
     });
 
@@ -59,6 +65,15 @@ function setupEventListeners() {
         if (e.target.matches('#reload-page-btn')) {
             window.location.reload();
         }
+
+        // NOVO: Trata o clique na notificação agrupada para mudar de aba
+        const groupedNotification = e.target.closest('.notification-grouped');
+        if (groupedNotification && groupedNotification.dataset.tabTarget) {
+            e.preventDefault();
+            const tabName = groupedNotification.dataset.tabTarget;
+            store.setActiveTab(tabName);
+            store.markUpdatesAsRead();
+        }
     });
 
     const backToTopButton = document.getElementById('back-to-top');
@@ -100,15 +115,16 @@ function findNewChapterUpdates(oldManga, newManga) {
 
         const newChaptersInManga = [];
         for (const chapterKey in manga.chapters) {
-            const newChapter = manga.chapters[chapterKey];
-            const oldChapter = oldVersion.chapters ? oldVersion.chapters[chapterKey] : undefined;
-            const chapterTimestamp = parseInt(newChapter.last_updated) * 1000;
+            if (!oldVersion.chapters || !oldVersion.chapters[chapterKey]) {
+                const newChapter = manga.chapters[chapterKey];
+                const chapterTimestamp = parseInt(newChapter.last_updated) * 1000;
 
-            if (!oldChapter && chapterTimestamp > lastCheckTimestamp) {
-                newChaptersInManga.push({
-                    title: newChapter.title || `Capítulo ${chapterKey}`,
-                    timestamp: chapterTimestamp,
-                });
+                if (chapterTimestamp > lastCheckTimestamp) {
+                    newChaptersInManga.push({
+                        title: newChapter.title || `Capítulo ${chapterKey}`,
+                        timestamp: chapterTimestamp,
+                    });
+                }
             }
         }
 
@@ -124,8 +140,9 @@ function findNewChapterUpdates(oldManga, newManga) {
     return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
 }
 
+// ATUALIZADO: Lógica principal de notificação
 async function checkForUpdates() {
-    const { settings, allManga: oldMangaData } = store.getState();
+    const { settings, allManga: oldMangaData, favorites } = store.getState();
     if (!settings.notificationsEnabled || oldMangaData.length === 0) {
         console.log("Notificações desabilitadas ou dados iniciais não carregados.");
         return;
@@ -141,7 +158,25 @@ async function checkForUpdates() {
             console.log(`${newUpdates.length} obra(s) com novos capítulos.`, newUpdates);
             store.addUpdates(newUpdates);
             
-            newUpdates.forEach(update => showUpdatePopup(update));
+            // Separa as atualizações entre favoritos e não-favoritos
+            const favoriteUpdates = [];
+            const otherUpdates = [];
+
+            newUpdates.forEach(update => {
+                if (favorites.has(update.manga.url)) {
+                    favoriteUpdates.push(update);
+                } else {
+                    otherUpdates.push(update);
+                }
+            });
+
+            // Mostra notificações individuais para favoritos
+            favoriteUpdates.forEach(update => showUpdatePopup(update));
+
+            // Mostra uma notificação agrupada para os outros, se houver
+            if (otherUpdates.length > 0) {
+                showGroupedUpdatePopup(otherUpdates.length);
+            }
 
             store.setAllManga(newMangaData);
         } else {
