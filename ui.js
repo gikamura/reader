@@ -19,6 +19,7 @@ export function getDOM() {
             libraryControls: document.getElementById('library-controls'),
             updatesContent: document.getElementById('updates-content'),
             updatesList: document.getElementById('updates-list'),
+            updatesBadge: document.getElementById('updates-badge'), // NOVO
             notificationsEnabledToggle: document.getElementById('notifications-enabled'),
             popupsEnabledToggle: document.getElementById('popups-enabled'),
             updatePopupContainer: document.getElementById('update-popup-container'),
@@ -39,7 +40,49 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-function createUpdatePopupHTML(updateData) {
+// Lógica de pop-up (fila e processamento) permanece a mesma
+let popupQueue = [];
+let isShowingPopup = false;
+
+function processPopupQueue() {
+    if (isShowingPopup || popupQueue.length === 0) {
+        return;
+    }
+    isShowingPopup = true;
+    const popupHTML = popupQueue.shift();
+    const dom = getDOM();
+    
+    const popupNode = document.createElement('div');
+    popupNode.innerHTML = popupHTML;
+    
+    dom.updatePopupContainer.appendChild(popupNode);
+    const popupElement = popupNode.querySelector('.notification-popup');
+    
+    popupElement.classList.add('show');
+
+    // Adiciona evento de clique para fechar o pop-up
+    popupElement.addEventListener('click', () => {
+        removePopup(popupElement, popupNode);
+    }, { once: true });
+    
+    setTimeout(() => {
+        removePopup(popupElement, popupNode);
+    }, 6000);
+}
+
+function removePopup(popupElement, popupNode) {
+    if (!popupElement || !popupNode.parentNode) return; // Evita erros se já foi removido
+    popupElement.classList.remove('show');
+    popupElement.classList.add('hide');
+    popupElement.addEventListener('animationend', () => {
+        popupNode.remove();
+        isShowingPopup = false;
+        processPopupQueue();
+    }, { once: true });
+}
+
+// ATUALIZADO: Pop-up individual para favoritos
+function createIndividualPopupHTML(updateData) {
     const { manga, newChapters } = updateData;
     const chapterText = newChapters.length > 1 
         ? `${newChapters.length} novos capítulos` 
@@ -55,52 +98,42 @@ function createUpdatePopupHTML(updateData) {
     </a>`;
 }
 
-let popupQueue = [];
-let isShowingPopup = false;
-
-function processPopupQueue() {
-    if (isShowingPopup || popupQueue.length === 0) {
-        return;
-    }
-    isShowingPopup = true;
-    const updateData = popupQueue.shift();
-    const dom = getDOM();
-    const popupHTML = createUpdatePopupHTML(updateData);
-    
-    const popupNode = document.createElement('div');
-    popupNode.innerHTML = popupHTML;
-    
-    dom.updatePopupContainer.appendChild(popupNode);
-    const popupElement = popupNode.querySelector('.notification-popup');
-    
-    popupElement.classList.add('show');
-
-    setTimeout(() => {
-        popupElement.classList.remove('show');
-        popupElement.classList.add('hide');
-        popupElement.addEventListener('animationend', () => {
-            popupNode.remove();
-            isShowingPopup = false;
-            processPopupQueue();
-        });
-    }, 6000);
+// NOVO: Pop-up agrupado para não-favoritos
+function createGroupedPopupHTML(count) {
+     return `
+    <a href="#" data-tab-target="updates" class="notification-popup notification-grouped flex items-center w-80 max-w-sm bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-2xl overflow-hidden cursor-pointer">
+        <div class="p-4 overflow-hidden">
+            <h4 class="font-bold text-white">Novas Atualizações</h4>
+            <p class="text-sm text-gray-300">${count} outras obras foram atualizadas. Clique para ver.</p>
+        </div>
+    </a>`;
 }
 
 export function showUpdatePopup(updateData) {
     const { settings } = store.getState();
     if (!settings.popupsEnabled) return;
     
-    popupQueue.push(updateData);
+    popupQueue.push(createIndividualPopupHTML(updateData));
     processPopupQueue();
 }
 
-function createUpdateHistoryItemHTML(update) {
+export function showGroupedUpdatePopup(count) {
+    const { settings } = store.getState();
+    if (!settings.popupsEnabled) return;
+
+    popupQueue.push(createGroupedPopupHTML(count));
+    processPopupQueue();
+}
+
+// ATUALIZADO: Adicionado `isUnread` para destacar visualmente
+function createUpdateHistoryItemHTML(update, isUnread) {
     const { manga, newChapters } = update;
     const updateTime = new Date(update.timestamp).toLocaleString('pt-BR');
     const chapterText = newChapters.map(c => c.title).join(', ');
+    const unreadClass = isUnread ? 'bg-blue-900/40 border-blue-700/60' : 'bg-[#050505]/50 border-neutral-800/60';
 
     return `
-    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 bg-[#050505]/50 rounded-lg hover:bg-neutral-800 transition-colors border border-neutral-800/60">
+    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
         <img src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0">
         <div class="overflow-hidden">
             <p class="font-semibold text-white truncate">${manga.title}</p>
@@ -110,28 +143,24 @@ function createUpdateHistoryItemHTML(update) {
     </a>`;
 }
 
+// ATUALIZADO: Renderiza os itens de atualização considerando o contador de não lidos
 function renderUpdatesTab(state) {
     const dom = getDOM();
     dom.notificationsEnabledToggle.checked = state.settings.notificationsEnabled;
     dom.popupsEnabledToggle.checked = state.settings.popupsEnabled;
-    
-    // Desabilita o toggle de pop-up se as notificações estiverem desligadas
     dom.popupsEnabledToggle.disabled = !state.settings.notificationsEnabled;
     
-    // --- AQUI ESTÁ A CORREÇÃO LÓGICA ---
-    // Adiciona uma classe na label pai para podermos estilizar o estado desabilitado
     const popupLabel = dom.popupsEnabledToggle.closest('label');
-    if (dom.popupsEnabledToggle.disabled) {
-        popupLabel.classList.add('disabled');
-    } else {
-        popupLabel.classList.remove('disabled');
-    }
-    // ------------------------------------
-
+    popupLabel.classList.toggle('disabled', dom.popupsEnabledToggle.disabled);
+    
     if (state.updates.length === 0) {
         dom.updatesList.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhuma atualização recente.</p>`;
     } else {
-        dom.updatesList.innerHTML = state.updates.map(createUpdateHistoryItemHTML).join('');
+        // Apenas os 'N' primeiros itens, onde N é o número de não lidos, recebem o destaque.
+        dom.updatesList.innerHTML = state.updates.map((update, index) => {
+            const isUnread = index < state.unreadUpdates;
+            return createUpdateHistoryItemHTML(update, isUnread);
+        }).join('');
     }
 }
 
@@ -213,6 +242,7 @@ const renderPagination = (controlsContainer, totalItems, currentPage) => {
     controlsContainer.innerHTML = buttons;
 };
 
+// ATUALIZADO: Função principal de renderização agora gerencia o badge.
 export function renderApp() {
     const state = store.getState();
     const dom = getDOM();
@@ -227,6 +257,14 @@ export function renderApp() {
     
     dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
     
+    // NOVO: Lógica para exibir e atualizar o badge de notificações
+    if (state.unreadUpdates > 0) {
+        dom.updatesBadge.textContent = state.unreadUpdates > 9 ? '9+' : state.unreadUpdates;
+        dom.updatesBadge.classList.remove('hidden');
+    } else {
+        dom.updatesBadge.classList.add('hidden');
+    }
+
     const isLibraryActive = state.activeTab === 'library';
     const isUpdatesActive = state.activeTab === 'updates';
 
@@ -276,6 +314,10 @@ export function renderApp() {
 
     if (!isUpdatesActive) {
       renderCards(dom.contentContainer, itemsToDisplay, state.favorites);
-      renderPagination(dom.paginationControls, totalPaginationItems, state.currentPage);
+      if (state.activeTab === 'library') {
+          renderPagination(dom.paginationControls, totalPaginationItems, state.currentPage);
+      } else {
+          dom.paginationControls.innerHTML = '';
+      }
     }
 }
