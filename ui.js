@@ -17,6 +17,11 @@ export function getDOM() {
             statusFilterContainer: document.getElementById('status-filter-container'),
             sortContainer: document.getElementById('sort-container'),
             libraryControls: document.getElementById('library-controls'),
+            updatesContent: document.getElementById('updates-content'),
+            updatesList: document.getElementById('updates-list'),
+            notificationsEnabledToggle: document.getElementById('notifications-enabled'),
+            popupsEnabledToggle: document.getElementById('popups-enabled'),
+            updatePopupContainer: document.getElementById('update-popup-container'),
         };
     }
     return dom;
@@ -32,6 +37,90 @@ export function showNotification(message, duration = 4000) {
     notificationTimeout = setTimeout(() => {
         notification.classList.add('translate-y-20', 'opacity-0');
     }, duration);
+}
+
+function createUpdatePopupHTML(updateData) {
+    const { manga, newChapters } = updateData;
+    const chapterText = newChapters.length > 1 
+        ? `${newChapters.length} novos capítulos` 
+        : `Novo capítulo: ${newChapters[0].title}`;
+
+    return `
+    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="notification-popup flex items-center w-80 max-w-sm bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-2xl overflow-hidden cursor-pointer" data-url="${manga.url}">
+        <img src="${manga.imageUrl}" alt="Capa" class="w-16 h-24 object-cover flex-shrink-0">
+        <div class="p-3 overflow-hidden">
+            <h4 class="font-bold text-white truncate">${manga.title}</h4>
+            <p class="text-sm text-gray-300">${chapterText}</p>
+        </div>
+    </a>`;
+}
+
+let popupQueue = [];
+let isShowingPopup = false;
+
+function processPopupQueue() {
+    if (isShowingPopup || popupQueue.length === 0) {
+        return;
+    }
+    isShowingPopup = true;
+    const updateData = popupQueue.shift();
+    const dom = getDOM();
+    const popupHTML = createUpdatePopupHTML(updateData);
+    
+    const popupNode = document.createElement('div');
+    popupNode.innerHTML = popupHTML;
+    
+    dom.updatePopupContainer.appendChild(popupNode);
+    const popupElement = popupNode.querySelector('.notification-popup');
+    
+    popupElement.classList.add('show');
+
+    setTimeout(() => {
+        popupElement.classList.remove('show');
+        popupElement.classList.add('hide');
+        popupElement.addEventListener('animationend', () => {
+            popupNode.remove();
+            isShowingPopup = false;
+            processPopupQueue();
+        });
+    }, 6000);
+}
+
+export function showUpdatePopup(updateData) {
+    const { settings } = store.getState();
+    if (!settings.popupsEnabled) return;
+    
+    popupQueue.push(updateData);
+    processPopupQueue();
+}
+
+function createUpdateHistoryItemHTML(update) {
+    const { manga, newChapters } = update;
+    const updateTime = new Date(update.timestamp).toLocaleString('pt-BR');
+    const chapterText = newChapters.map(c => c.title).join(', ');
+
+    return `
+    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 bg-[#050505]/50 rounded-lg hover:bg-neutral-800 transition-colors border border-neutral-800/60">
+        <img src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0">
+        <div class="overflow-hidden">
+            <p class="font-semibold text-white truncate">${manga.title}</p>
+            <p class="text-sm text-gray-400 truncate">Novos capítulos: ${chapterText}</p>
+            <p class="text-xs text-gray-500 mt-1">${updateTime}</p>
+        </div>
+    </a>`;
+}
+
+function renderUpdatesTab(state) {
+    const dom = getDOM();
+    dom.notificationsEnabledToggle.checked = state.settings.notificationsEnabled;
+    dom.popupsEnabledToggle.checked = state.settings.popupsEnabled;
+    dom.popupsEnabledToggle.disabled = !state.settings.notificationsEnabled;
+
+    if (state.updates.length === 0) {
+        dom.updatesList.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhuma atualização recente.</p>`;
+    } else {
+        dom.updatesList.innerHTML = state.updates.map(createUpdateHistoryItemHTML).join('');
+    }
 }
 
 const createCardMetadata = (icon, title, value) => {
@@ -127,12 +216,20 @@ export function renderApp() {
     dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
     
     const isLibraryActive = state.activeTab === 'library';
+    const isUpdatesActive = state.activeTab === 'updates';
+
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
     dom.libraryControls.classList.toggle('hidden', !isLibraryActive);
+    
+    dom.updatesContent.classList.toggle('hidden', !isUpdatesActive);
+    dom.contentContainer.classList.toggle('hidden', isUpdatesActive);
+    dom.paginationControls.classList.toggle('hidden', isUpdatesActive);
 
     if (isLibraryActive) {
         dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter));
         dom.statusFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.status === state.activeStatusFilter));
+    } else if (isUpdatesActive) {
+        renderUpdatesTab(state);
     }
 
     let itemsToDisplay = [];
@@ -165,6 +262,8 @@ export function renderApp() {
             break;
     }
 
-    renderCards(dom.contentContainer, itemsToDisplay, state.favorites);
-    renderPagination(dom.paginationControls, totalPaginationItems, state.currentPage);
+    if (!isUpdatesActive) {
+      renderCards(dom.contentContainer, itemsToDisplay, state.favorites);
+      renderPagination(dom.paginationControls, totalPaginationItems, state.currentPage);
+    }
 }
