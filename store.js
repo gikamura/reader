@@ -1,4 +1,4 @@
-import { saveFavoritesToCache, loadFavoritesFromCache } from './cache.js';
+import { saveFavoritesToCache, loadFavoritesFromCache, saveSettingsToCache, loadSettingsFromCache, saveUpdatesToCache, loadUpdatesFromCache } from './cache.js';
 import { getInitialState } from './constants.js';
 
 let state = getInitialState();
@@ -33,6 +33,29 @@ export const store = {
         saveFavoritesToCache(state.favorites);
         notify();
     },
+
+    // --- NOVAS FUNÇÕES E ESTADOS ---
+    setUpdates(updatesArray) {
+        // Limita a 30 atualizações
+        state.updates = updatesArray.slice(0, 30);
+        saveUpdatesToCache(state.updates);
+        notify();
+    },
+
+    addUpdates(newUpdates) {
+        // Adiciona novas atualizações no início e mantém o limite de 30
+        const updatedList = [...newUpdates, ...state.updates];
+        state.updates = updatedList.slice(0, 30);
+        saveUpdatesToCache(state.updates);
+        notify();
+    },
+
+    setSettings(newSettings) {
+        state.settings = { ...state.settings, ...newSettings };
+        saveSettingsToCache(state.settings);
+        notify();
+    },
+    // --------------------------------
 
     setCurrentPage(page) {
         state.currentPage = page;
@@ -82,4 +105,11 @@ function notify() {
 export function initializeStore() {
     const favorites = loadFavoritesFromCache();
     store.setFavorites(favorites);
+    
+    // --- INICIALIZAÇÃO DOS NOVOS DADOS ---
+    const settings = loadSettingsFromCache();
+    store.setSettings(settings);
+
+    const updates = loadUpdatesFromCache();
+    store.setUpdates(updates);
 }
