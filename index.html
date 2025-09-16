@@ -79,11 +79,44 @@
                 </nav>
 
                 <div id="search-container" class="relative w-full sm:w-auto hidden">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                     </div>
+                    <input type="search" id="search-input" placeholder="Buscar na biblioteca..." class="w-full sm:w-72 bg-neutral-800 text-gray-200 border border-neutral-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
             </div>
 
             <div id="library-controls" class="pt-4 mt-4 border-t border-neutral-800/60 space-y-3 hidden">
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <div id="type-filter-container" class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-400">Tipo:</span>
+                        <div class="flex items-center bg-[#050505]/50 rounded-lg p-1 space-x-1 border border-neutral-700">
+                            <button data-type="all" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Todos</button>
+                            <button data-type="manga" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Manga</button>
+                            <button data-type="manhwa" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Manhwa</button>
+                            <button data-type="manhua" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Manhua</button>
+                        </div>
+                    </div>
+                    <div id="status-filter-container" class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-400">Status:</span>
+                        <div class="flex items-center bg-[#050505]/50 rounded-lg p-1 space-x-1 border border-neutral-700">
+                            <button data-status="all" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Todos</button>
+                            <button data-status="ongoing" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Andamento</button>
+                            <button data-status="completed" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Completo</button>
+                            <button data-status="hiatus" class="filter-btn px-3 py-1 text-sm rounded-md transition-colors hover:bg-neutral-700">Pausado</button>
+                        </div>
+                    </div>
+                    <div id="sort-container" class="flex items-center gap-2 ml-auto">
+                         <span class="text-sm font-medium text-gray-400">Ordenar por:</span>
+                        <select id="sort-select" class="bg-neutral-800 text-gray-200 border border-neutral-700 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-colors">
+                            <option value="title">Título (A-Z)</option>
+                            <option value="latest">Ordenar por Mais Recente</option>
+                        </select>
+                    </div>
                 </div>
+            </div>
         </div>
 
         <main class="flex-grow">
@@ -112,7 +145,7 @@
                 </div>
                 <h2 class="text-2xl font-bold mb-4 text-white">Últimas Atualizações</h2>
                 <div id="updates-list" class="space-y-4">
-                    </div>
+                </div>
             </div>
             <div id="content-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             <div id="pagination-controls" class="flex justify-center items-center mt-8 space-x-2"></div>
