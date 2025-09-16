@@ -62,8 +62,9 @@ const createCardHTML = (data, isFavorite) => {
             </div>
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <div class="h-10"></div> 
-                <div class="flex-grow">
-                    <p class="text-sm text-gray-400 leading-snug line-clamp-4" style="-webkit-box-orient: vertical;">${description}</p>
+                <div class="relative flex-grow">
+                     <p class="text-sm text-gray-400 leading-snug line-clamp-4 flex-grow" style="-webkit-box-orient: vertical;">${description}</p>
+                    <div class="absolute inset-0 bg-[#1a1a1a] p-2 text-sm text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-auto pointer-events-none group-hover:pointer-events-auto rounded description-scroll">${description}</div>
                 </div>
                 <div class="mt-auto pt-3 border-t border-neutral-800 text-xs flex items-center justify-start space-x-4 overflow-hidden">
                     ${createCardMetadata(iconUser, 'Autor', author)}
