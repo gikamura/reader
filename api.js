@@ -62,6 +62,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             genres: data.genres,
             type: preFetchedData.type || null,
             status: data.status,
+            chapters: data.chapters, // <-- LINHA ADICIONADA AQUI
             chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
             lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
             error: false
@@ -136,4 +137,3 @@ export async function fetchAndProcessMangaData(updateStatus) {
     
     return { data: allManga, updated: true };
 }
-
