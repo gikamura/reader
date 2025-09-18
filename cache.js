@@ -85,6 +85,36 @@ export const setMangaCache = async (data) => {
     });
 };
 
+const getMetadata = async (key) => {
+    await initDB();
+    return new Promise((resolve) => {
+        const store = getStore(METADATA_STORE, 'readonly');
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result ? request.result.value : null);
+        request.onerror = () => resolve(null);
+    });
+};
+
+const setMetadata = async (key, value) => {
+    await initDB();
+    return new Promise((resolve, reject) => {
+        const store = getStore(METADATA_STORE, 'readwrite');
+        const request = store.put({ key, value });
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => reject(`Erro ao salvar metadado ${key}: ${event.target.error}`);
+    });
+};
+
+// ==========================================================
+// FUNÇÃO ADICIONADA DE VOLTA
+// ==========================================================
+export const clearMangaCache = async () => {
+    await initDB();
+    await clearStore(MANGA_STORE);
+    await setMetadata('cacheVersion', null); // Também limpa a versão
+};
+// ==========================================================
+
 export const loadFavoritesFromCache = async () => {
     await initDB();
     return new Promise((resolve, reject) => {
@@ -107,26 +137,6 @@ export const saveFavoritesToCache = async (favoritesSet) => {
     return new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
         transaction.onerror = (event) => reject(event.target.error);
-    });
-};
-
-const getMetadata = async (key) => {
-    await initDB();
-    return new Promise((resolve) => {
-        const store = getStore(METADATA_STORE, 'readonly');
-        const request = store.get(key);
-        request.onsuccess = () => resolve(request.result ? request.result.value : null);
-        request.onerror = () => resolve(null);
-    });
-};
-
-const setMetadata = async (key, value) => {
-    await initDB();
-    return new Promise((resolve, reject) => {
-        const store = getStore(METADATA_STORE, 'readwrite');
-        const request = store.put({ key, value });
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(`Erro ao salvar metadado ${key}: ${event.target.error}`);
     });
 };
 
@@ -165,39 +175,28 @@ export const saveSettingsToCache = async (settingsObject) => {
     });
 };
 
-// ==========================================================
-// FUNÇÃO CORRIGIDA
-// ==========================================================
 export const loadUpdatesFromCache = async () => {
     await initDB();
     return new Promise((resolve) => {
         const updates = [];
         const store = getStore(UPDATES_STORE, 'readonly');
         const index = store.index('timestamp');
-
-        // Abre um cursor com a direção 'prev' para ordenar do mais novo para o mais antigo
         const request = index.openCursor(null, 'prev'); 
-
         request.onsuccess = (event) => {
             const cursor = event.target.result;
             if (cursor) {
-                // Adiciona o valor do cursor ao array
                 updates.push(cursor.value);
-                // Continua para o próximo item
                 cursor.continue();
             } else {
-                // O cursor terminou de percorrer os itens
                 resolve(updates);
             }
         };
-
         request.onerror = (event) => {
             console.error("Erro ao carregar atualizações via cursor:", event.target.error);
-            resolve([]); // Retorna um array vazio em caso de erro
+            resolve([]);
         };
     });
 };
-// ==========================================================
 
 export const saveUpdatesToCache = async (updatesArray) => {
     await initDB();
