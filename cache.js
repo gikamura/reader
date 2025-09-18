@@ -5,15 +5,13 @@ const MANGA_STORE = 'mangaCatalog';
 const FAVORITES_STORE = 'favorites';
 const UPDATES_STORE = 'updates';
 const SETTINGS_STORE = 'settings';
-const METADATA_STORE = 'metadata'; // Para versão e timestamps
+const METADATA_STORE = 'metadata';
 
 let db;
 
 const initDB = () => {
     return new Promise((resolve, reject) => {
-        if (db) {
-            return resolve(db);
-        }
+        if (db) return resolve(db);
 
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -36,12 +34,14 @@ const initDB = () => {
                 dbInstance.createObjectStore(FAVORITES_STORE, { keyPath: 'url' });
             }
             if (!dbInstance.objectStoreNames.contains(UPDATES_STORE)) {
-                dbInstance.createObjectStore(UPDATES_STORE, { autoIncrement: true });
+                // Adicionamos um índice 'timestamp' para ordenar
+                const updatesStore = dbInstance.createObjectStore(UPDATES_STORE, { autoIncrement: true });
+                updatesStore.createIndex('timestamp', 'timestamp', { unique: false });
             }
             if (!dbInstance.objectStoreNames.contains(SETTINGS_STORE)) {
                 dbInstance.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
             }
-             if (!dbInstance.objectStoreNames.contains(METADATA_STORE)) {
+            if (!dbInstance.objectStoreNames.contains(METADATA_STORE)) {
                 dbInstance.createObjectStore(METADATA_STORE, { keyPath: 'key' });
             }
         };
@@ -78,19 +78,11 @@ export const setMangaCache = async (data) => {
     await initDB();
     const transaction = db.transaction(MANGA_STORE, 'readwrite');
     const store = transaction.objectStore(MANGA_STORE);
-    
-    store.clear(); 
-    
-    data.forEach(item => {
-        store.put(item);
-    });
-
+    store.clear();
+    data.forEach(item => store.put(item));
     return new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => {
-            console.error("Erro ao salvar o cache de mangás:", event.target.error);
-            reject(event.target.error);
-        };
+        transaction.onerror = (event) => reject(event.target.error);
     });
 };
 
@@ -103,10 +95,7 @@ export const loadFavoritesFromCache = async () => {
             const favUrls = request.result.map(item => item.url);
             resolve(new Set(favUrls));
         };
-        request.onerror = (event) => {
-            console.error("Erro ao carregar favoritos:", event.target.error);
-            resolve(new Set());
-        };
+        request.onerror = () => resolve(new Set());
     });
 };
 
@@ -115,18 +104,10 @@ export const saveFavoritesToCache = async (favoritesSet) => {
     const transaction = db.transaction(FAVORITES_STORE, 'readwrite');
     const store = transaction.objectStore(FAVORITES_STORE);
     store.clear();
-    
-    const favArray = Array.from(favoritesSet);
-    favArray.forEach(url => {
-        store.put({ url: url });
-    });
-
+    Array.from(favoritesSet).forEach(url => store.put({ url }));
     return new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => {
-            console.error("Erro ao salvar favoritos:", event.target.error);
-            reject(event.target.error);
-        };
+        transaction.onerror = (event) => reject(event.target.error);
     });
 };
 
@@ -155,12 +136,6 @@ export const setMangaCacheVersion = (version) => setMetadata('cacheVersion', ver
 export const getLastCheckTimestamp = () => getMetadata('lastCheckTimestamp');
 export const setLastCheckTimestamp = (timestamp) => setMetadata('lastCheckTimestamp', timestamp);
 
-export const clearMangaCache = async () => {
-    await initDB();
-    await clearStore(MANGA_STORE);
-    await setMetadata('cacheVersion', null);
-};
-
 export const loadSettingsFromCache = async () => {
     await initDB();
     return new Promise((resolve) => {
@@ -182,17 +157,12 @@ export const saveSettingsToCache = async (settingsObject) => {
     await initDB();
     const transaction = db.transaction(SETTINGS_STORE, 'readwrite');
     const store = transaction.objectStore(SETTINGS_STORE);
-
     for (const key in settingsObject) {
         store.put({ key: key, value: settingsObject[key] });
     }
-    
     return new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => {
-            console.error("Erro ao salvar configurações:", event.target.error);
-            reject(event.target.error);
-        };
+        transaction.onerror = (event) => reject(event.target.error);
     });
 };
 
@@ -200,8 +170,9 @@ export const loadUpdatesFromCache = async () => {
     await initDB();
     return new Promise((resolve) => {
         const store = getStore(UPDATES_STORE, 'readonly');
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result.reverse()); // Mais recentes primeiro
+        const index = store.index('timestamp');
+        const request = index.getAll(null, 'prev'); // Ordena do mais novo para o mais antigo
+        request.onsuccess = () => resolve(request.result);
         request.onerror = () => resolve([]);
     });
 };
@@ -211,16 +182,11 @@ export const saveUpdatesToCache = async (updatesArray) => {
     const transaction = db.transaction(UPDATES_STORE, 'readwrite');
     const store = transaction.objectStore(UPDATES_STORE);
     store.clear();
-    
-    updatesArray.slice(0, 30).forEach(update => {
+    updatesArray.slice(0, 50).forEach(update => { // Aumentamos o limite para 50
         store.add(update);
     });
-
     return new Promise((resolve, reject) => {
         transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => {
-            console.error("Erro ao salvar atualizações:", event.target.error);
-            reject(event.target.error);
-        };
+        transaction.onerror = (event) => reject(event.target.error);
     });
 };
