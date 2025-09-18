@@ -71,7 +71,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
     }
 };
 
-async function processInBatches(items, batchSize, delay, updateStatus) {
+async function processInBatches(items, batchSize, delay, updateStatus, onBatchProcessed) {
     let results = [];
     for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
@@ -102,9 +102,12 @@ async function processInBatches(items, batchSize, delay, updateStatus) {
         }).filter(p => p !== null);
 
         const batchResults = await Promise.all(batchPromises);
-        results = results.concat(batchResults);
+        
+        if (onBatchProcessed) {
+            onBatchProcessed(batchResults);
+        }
 
-        updateStatus(`Processando ${results.length} de ${items.length} obras...`);
+        results = results.concat(batchResults);
         
         if (i + batchSize < items.length) {
             await new Promise(resolve => setTimeout(resolve, delay));
@@ -113,7 +116,7 @@ async function processInBatches(items, batchSize, delay, updateStatus) {
     return results;
 }
 
-export async function fetchAndProcessMangaData(updateStatus) {
+export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
     updateStatus('Verificando por atualizações...');
     
     const response = await fetchWithTimeout(INDEX_URL);
@@ -136,7 +139,7 @@ export async function fetchAndProcessMangaData(updateStatus) {
 
     const allMangaSeries = Object.entries(indexData.mangas);
     
-    const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, updateStatus);
+    const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, updateStatus, onBatchProcessed);
     
     const allManga = allMangaResults.filter(m => m && !m.error);
 
