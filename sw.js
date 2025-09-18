@@ -1,23 +1,21 @@
-// sw.js
+// REMOVIDO: importScripts(...)
 
-// Importamos os scripts com a lógica necessária.
-// NOTA: O caminho para os scripts deve estar correto em relação à raiz do seu site.
-importScripts('./constants.js', './cache.js', './api.js');
+// ADICIONADO: importações de módulo
+import { getMangaCache, loadUpdatesFromCache, saveUpdatesToCache, getLastCheckTimestamp, setLastCheckTimestamp } from './cache.js';
+import { fetchAndProcessMangaData } from './api.js';
 
 const NOTIFICATION_TAG = 'gikamura-update';
 
-// Escuta o evento de sincronização periódica que será registrado pelo app.js
 self.addEventListener('periodicsync', (event) => {
     if (event.tag === 'check-for-updates') {
         event.waitUntil(handleUpdateCheck());
     }
 });
 
-// Escuta o clique na notificação
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
-        clients.openWindow('/#updates') // Abre a aba de atualizações ao clicar
+        clients.openWindow('/#updates')
     );
 });
 
@@ -54,7 +52,6 @@ async function findNewChapterUpdates(oldManga, newManga) {
     return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-
 async function handleUpdateCheck() {
     console.log('[Service Worker] Verificando atualizações em segundo plano...');
     try {
@@ -66,21 +63,16 @@ async function handleUpdateCheck() {
 
         const { data: newData, updated } = await fetchAndProcessMangaData(() => {});
 
-        if (updated) { // Apenas se o índice foi atualizado
+        if (updated) {
             const updates = await findNewChapterUpdates(oldData, newData);
 
             if (updates.length > 0) {
                 console.log(`[Service Worker] ${updates.length} atualizações encontradas.`);
-
-                // Adiciona o estado 'read: false' para a UI
                 const updatesWithReadState = updates.map(u => ({ ...u, read: false }));
-
-                // Salva no cache para a UI
                 const currentUpdates = await loadUpdatesFromCache();
                 await saveUpdatesToCache([...updatesWithReadState, ...currentUpdates]);
                 await setLastCheckTimestamp(Date.now().toString());
 
-                // Mostra a notificação
                 const title = 'Gikamura - Novas Atualizações!';
                 const body = updates.length === 1
                     ? `Novo capítulo em "${updates[0].manga.title}"!`
@@ -88,8 +80,8 @@ async function handleUpdateCheck() {
 
                 await self.registration.showNotification(title, {
                     body: body,
-                    icon: '/icon-192.png', // IMPORTANTE: Crie este ícone na raiz do projeto
-                    badge: '/badge-72.png', // IMPORTANTE: Crie este ícone
+                    icon: '/icon-192.png',
+                    badge: '/badge-72.png',
                     tag: NOTIFICATION_TAG
                 });
             } else {
