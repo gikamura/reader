@@ -84,7 +84,12 @@ async function handleRequest(request) {
             return await staleWhileRevalidate(request);
         }
     } catch (error) {
-        console.error('Erro no fetch:', error);
+        // Não logar erros CORS como críticos
+        if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+            console.warn('Fetch falhou (possivelmente CORS):', request.url);
+        } else {
+            console.error('Erro no fetch:', error);
+        }
         return await handleError(request);
     }
 }
@@ -120,15 +125,19 @@ async function cacheFirst(request) {
         return cachedResponse;
     }
 
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-        // Verificar novamente antes de cachear
-        if (requestUrl.protocol === 'https:' || requestUrl.protocol === 'http:') {
-            cache.put(request, networkResponse.clone());
+    try {
+        const networkResponse = await fetch(request);
+        if (networkResponse.ok) {
+            // Verificar novamente antes de cachear
+            if (requestUrl.protocol === 'https:' || requestUrl.protocol === 'http:') {
+                cache.put(request, networkResponse.clone());
+            }
         }
+        return networkResponse;
+    } catch (fetchError) {
+        // Se fetch falhar, não tentar cachear
+        throw fetchError;
     }
-
-    return networkResponse;
 }
 
 async function networkFirst(request) {

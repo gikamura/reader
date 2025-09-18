@@ -139,7 +139,17 @@ export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
     updateStatus('Verificando por atualizações...');
 
     try {
-        const response = await robustFetcher.fetchWithFallback(INDEX_URL);
+        // Tentar buscar diretamente do GitHub primeiro (sem proxy)
+        let response;
+        try {
+            updateStatus('Buscando índice diretamente do GitHub...');
+            response = await fetchWithTimeout(INDEX_URL, { timeout: 10000 });
+            console.log('Busca direta do INDEX_URL bem-sucedida');
+        } catch (directError) {
+            console.warn('Busca direta falhou, tentando com proxies:', directError);
+            updateStatus('Busca direta falhou, tentando proxies...');
+            response = await robustFetcher.fetchWithFallback(INDEX_URL);
+        }
         if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
         const indexData = await response.json();
 
