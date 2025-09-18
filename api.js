@@ -1,7 +1,6 @@
 import { getMangaCache, setMangaCache, getMangaCacheVersion, setMangaCacheVersion, clearMangaCache } from './cache.js';
 import { INDEX_URL, PROXIES } from './constants.js';
 
-// --- Lógica de Rede ---
 const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
     const { timeout } = options;
     const controller = new AbortController();
@@ -14,7 +13,6 @@ const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
     }
 };
 
-// --- Lógica de Processamento de Dados ---
 const b64DecodeUnicode = (str) => {
     return decodeURIComponent(atob(str).split('').map((c) => {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -60,9 +58,9 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             author: data.author,
             artist: data.artist,
             genres: data.genres,
-            type: preFetchedData.type || null, // O tipo virá do preFetchedData
+            type: preFetchedData.type || null,
             status: data.status,
-            chapters: data.chapters, // Mantém a correção anterior
+            chapters: data.chapters,
             chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
             lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
             error: false
@@ -73,21 +71,18 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
     }
 };
 
-// --- FUNÇÃO PARA PROCESSAMENTO EM LOTES (MODIFICADA) ---
 async function processInBatches(items, batchSize, delay, updateStatus) {
     let results = [];
-    // 'items' agora é um array de [chave, dados], ex: ["KR1611", {title: ...}]
     for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
         
-        const batchPromises = batch.map(([key, mangaSeries]) => { // Desestruturação para pegar a chave e os dados
+        const batchPromises = batch.map(([key, mangaSeries]) => {
             const representativeChapter = mangaSeries.chapters[0];
             if (!representativeChapter || !representativeChapter.url) {
                 console.warn('Série sem capítulos ou URL válida:', mangaSeries.title);
                 return null;
             }
 
-            // **NOVA LÓGICA PARA DETERMINAR O TIPO PELA CHAVE**
             let type = null;
             if (key.startsWith('KR')) {
                 type = 'manhwa';
@@ -100,7 +95,7 @@ async function processInBatches(items, batchSize, delay, updateStatus) {
             const preFetchedData = {
                 title: mangaSeries.title,
                 cover_url: representativeChapter.cover_url || null,
-                type: type // Usamos o tipo que acabamos de determinar
+                type: type
             };
             return processMangaUrl(representativeChapter.url, preFetchedData);
 
@@ -118,7 +113,6 @@ async function processInBatches(items, batchSize, delay, updateStatus) {
     return results;
 }
 
-// --- FUNÇÃO PRINCIPAL (MODIFICADA) ---
 export async function fetchAndProcessMangaData(updateStatus) {
     updateStatus('Verificando por atualizações...');
     
@@ -127,10 +121,10 @@ export async function fetchAndProcessMangaData(updateStatus) {
     const indexData = await response.json();
     
     const remoteVersion = indexData.metadata.version;
-    const localVersion = getMangaCacheVersion();
+    const localVersion = await getMangaCacheVersion();
 
     if (remoteVersion === localVersion) {
-        const cachedData = getMangaCache();
+        const cachedData = await getMangaCache();
         if (cachedData) {
             updateStatus(`Catálogo atualizado. Carregando ${cachedData.length} obras do cache...`);
             return { data: cachedData, updated: false };
@@ -138,18 +132,16 @@ export async function fetchAndProcessMangaData(updateStatus) {
     }
     
     updateStatus('Nova versão encontrada! Atualizando o catálogo...');
-    clearMangaCache();
+    await clearMangaCache();
 
-    // **MUDANÇA AQUI: De Object.values para Object.entries**
-    // Isso nos dá acesso tanto à chave (ex: "KR1611") quanto ao valor (os dados do mangá)
     const allMangaSeries = Object.entries(indexData.mangas);
     
     const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, updateStatus);
     
     const allManga = allMangaResults.filter(m => m && !m.error);
 
-    setMangaCache(allManga);
-    setMangaCacheVersion(remoteVersion);
+    await setMangaCache(allManga);
+    await setMangaCacheVersion(remoteVersion);
     
     return { data: allManga, updated: true };
 }
