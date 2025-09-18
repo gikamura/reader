@@ -19,10 +19,11 @@ export function getDOM() {
             libraryControls: document.getElementById('library-controls'),
             updatesContent: document.getElementById('updates-content'),
             updatesList: document.getElementById('updates-list'),
-            updatesBadge: document.getElementById('updates-badge'), // NOVO
+            updatesBadge: document.getElementById('updates-badge'),
             notificationsEnabledToggle: document.getElementById('notifications-enabled'),
             popupsEnabledToggle: document.getElementById('popups-enabled'),
             updatePopupContainer: document.getElementById('update-popup-container'),
+            markAllAsReadBtn: document.getElementById('mark-all-as-read-btn'),
         };
     }
     return dom;
@@ -40,14 +41,11 @@ export function showNotification(message, duration = 4000) {
     }, duration);
 }
 
-// Lógica de pop-up (fila e processamento) permanece a mesma
 let popupQueue = [];
 let isShowingPopup = false;
 
 function processPopupQueue() {
-    if (isShowingPopup || popupQueue.length === 0) {
-        return;
-    }
+    if (isShowingPopup || popupQueue.length === 0) return;
     isShowingPopup = true;
     const popupHTML = popupQueue.shift();
     const dom = getDOM();
@@ -60,18 +58,12 @@ function processPopupQueue() {
     
     popupElement.classList.add('show');
 
-    // Adiciona evento de clique para fechar o pop-up
-    popupElement.addEventListener('click', () => {
-        removePopup(popupElement, popupNode);
-    }, { once: true });
-    
-    setTimeout(() => {
-        removePopup(popupElement, popupNode);
-    }, 6000);
+    popupElement.addEventListener('click', () => removePopup(popupElement, popupNode), { once: true });
+    setTimeout(() => removePopup(popupElement, popupNode), 6000);
 }
 
 function removePopup(popupElement, popupNode) {
-    if (!popupElement || !popupNode.parentNode) return; // Evita erros se já foi removido
+    if (!popupElement || !popupNode.parentNode) return;
     popupElement.classList.remove('show');
     popupElement.classList.add('hide');
     popupElement.addEventListener('animationend', () => {
@@ -81,56 +73,33 @@ function removePopup(popupElement, popupNode) {
     }, { once: true });
 }
 
-// ATUALIZADO: Pop-up individual para favoritos
-function createIndividualPopupHTML(updateData) {
-    const { manga, newChapters } = updateData;
-    const chapterText = newChapters.length > 1 
-        ? `${newChapters.length} novos capítulos` 
-        : `Novo capítulo: ${newChapters[0].title}`;
-
-    return `
-    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="notification-popup flex items-center w-80 max-w-sm bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-2xl overflow-hidden cursor-pointer" data-url="${manga.url}">
-        <img src="${manga.imageUrl}" alt="Capa" class="w-16 h-24 object-cover flex-shrink-0">
-        <div class="p-3 overflow-hidden">
-            <h4 class="font-bold text-white truncate">${manga.title}</h4>
-            <p class="text-sm text-gray-300">${chapterText}</p>
-        </div>
-    </a>`;
-}
-
-// NOVO: Pop-up agrupado para não-favoritos
-function createGroupedPopupHTML(count) {
+// Pop-up consolidado
+function createGroupedPopupHTML(count, updates) {
+    const message = count === 1
+        ? `Novo capítulo em <strong>${updates[0].manga.title}</strong>.`
+        : `${count} obras foram atualizadas.`;
      return `
     <a href="#" data-tab-target="updates" class="notification-popup notification-grouped flex items-center w-80 max-w-sm bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-2xl overflow-hidden cursor-pointer">
         <div class="p-4 overflow-hidden">
             <h4 class="font-bold text-white">Novas Atualizações</h4>
-            <p class="text-sm text-gray-300">${count} outras obras foram atualizadas. Clique para ver.</p>
+            <p class="text-sm text-gray-300">${message} Clique para ver.</p>
         </div>
     </a>`;
 }
 
-export function showUpdatePopup(updateData) {
+export function showConsolidatedUpdatePopup(updates) {
     const { settings } = store.getState();
-    if (!settings.popupsEnabled) return;
-    
-    popupQueue.push(createIndividualPopupHTML(updateData));
+    if (!settings.popupsEnabled || updates.length === 0) return;
+
+    popupQueue.push(createGroupedPopupHTML(updates.length, updates));
     processPopupQueue();
 }
 
-export function showGroupedUpdatePopup(count) {
-    const { settings } = store.getState();
-    if (!settings.popupsEnabled) return;
-
-    popupQueue.push(createGroupedPopupHTML(count));
-    processPopupQueue();
-}
-
-// ATUALIZADO: Adicionado `isUnread` para destacar visualmente
-function createUpdateHistoryItemHTML(update, isUnread) {
-    const { manga, newChapters } = update;
+function createUpdateHistoryItemHTML(update) {
+    const { manga, newChapters, read } = update;
     const updateTime = new Date(update.timestamp).toLocaleString('pt-BR');
     const chapterText = newChapters.map(c => c.title).join(', ');
-    const unreadClass = isUnread ? 'bg-blue-900/40 border-blue-700/60' : 'bg-[#050505]/50 border-neutral-800/60';
+    const unreadClass = read === false ? 'bg-blue-900/40 border-blue-700/60' : 'bg-[#050505]/50 border-neutral-800/60';
 
     return `
     <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
@@ -143,47 +112,39 @@ function createUpdateHistoryItemHTML(update, isUnread) {
     </a>`;
 }
 
-// ATUALIZADO: Renderiza os itens de atualização considerando o contador de não lidos
 function renderUpdatesTab(state) {
     const dom = getDOM();
     dom.notificationsEnabledToggle.checked = state.settings.notificationsEnabled;
     dom.popupsEnabledToggle.checked = state.settings.popupsEnabled;
     dom.popupsEnabledToggle.disabled = !state.settings.notificationsEnabled;
+    dom.popupsEnabledToggle.closest('label').classList.toggle('disabled', dom.popupsEnabledToggle.disabled);
     
-    const popupLabel = dom.popupsEnabledToggle.closest('label');
-    popupLabel.classList.toggle('disabled', dom.popupsEnabledToggle.disabled);
-    
+    dom.markAllAsReadBtn.classList.toggle('hidden', state.unreadUpdates === 0);
+
     if (state.updates.length === 0) {
         dom.updatesList.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhuma atualização recente.</p>`;
     } else {
-        // Apenas os 'N' primeiros itens, onde N é o número de não lidos, recebem o destaque.
-        dom.updatesList.innerHTML = state.updates.map((update, index) => {
-            const isUnread = index < state.unreadUpdates;
-            return createUpdateHistoryItemHTML(update, isUnread);
-        }).join('');
+        dom.updatesList.innerHTML = state.updates.map(createUpdateHistoryItemHTML).join('');
     }
 }
 
-const createCardMetadata = (icon, title, value) => {
-    return `
+const createCardMetadata = (icon, title, value) => `
     <div class="flex items-center gap-1.5 text-gray-300 truncate" title="${title}: ${value}">
         ${icon}
         <span class="truncate">${value}</span>
     </div>`;
-};
 
 const createCardHTML = (data, isFavorite) => {
+    // ... (O conteúdo desta função permanece o mesmo, pode copiar da sua versão)
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
     const iconPaintBrush = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
     const iconBookOpen = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg>`;
-    
     const author = data.author || 'N/A';
     const artist = data.artist || 'N/A';
     const status = data.status || 'N/A';
     const type = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A';
     const description = data.description || 'Sem descrição disponível.';
     const chapterCount = data.chapterCount || 'N/A';
-
     return `
     <div class="relative bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
@@ -191,7 +152,7 @@ const createCardHTML = (data, isFavorite) => {
                 <img src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/7ca3f5?text=Inválida';">
             </div>
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
-                <div class="h-10"></div> 
+                <div class="h-10"></div>
                 <div class="relative flex-grow">
                      <p class="text-sm text-gray-400 leading-snug line-clamp-4 flex-grow" style="-webkit-box-orient: vertical;">${description}</p>
                     <div class="absolute inset-0 bg-[#1a1a1a] p-2 text-sm text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-auto pointer-events-none group-hover:pointer-events-auto rounded description-scroll">${description}</div>
@@ -221,7 +182,7 @@ const createCardHTML = (data, isFavorite) => {
 const renderCards = (container, cardDataList, favoritesSet) => {
     const { activeTab } = store.getState();
     if (!cardDataList || cardDataList.length === 0) {
-        let message = activeTab === 'favorites' ? 'Você ainda não adicionou nenhum favorito. Clique no coração ♡ em uma obra para adicioná-la aqui.' : 'Nenhum resultado para a sua busca. Tente outros termos.';
+        let message = activeTab === 'favorites' ? 'Você ainda não adicionou nenhum favorito.' : 'Nenhum resultado encontrado.';
         container.innerHTML = `<div class="col-span-1 md:col-span-2 lg:col-span-3 text-center text-gray-400 p-8"><p>${message}</p></div>`;
         return;
     }
@@ -242,7 +203,6 @@ const renderPagination = (controlsContainer, totalItems, currentPage) => {
     controlsContainer.innerHTML = buttons;
 };
 
-// ATUALIZADO: Função principal de renderização agora gerencia o badge.
 export function renderApp() {
     const state = store.getState();
     const dom = getDOM();
@@ -250,14 +210,11 @@ export function renderApp() {
     dom.mainLoader.classList.toggle('hidden', !state.isLoading);
     if (state.error) {
         dom.contentContainer.innerHTML = `<div class="col-span-full text-center text-red-400 p-8 bg-[#1a1a1a] rounded-lg space-y-4"><p>${state.error}</p><button id="reload-page-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">Atualizar Página</button></div>`;
-        dom.paginationControls.innerHTML = '';
-        dom.subtitle.textContent = "Ocorreu um erro";
         return;
     }
     
     dom.tabs.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
     
-    // NOVO: Lógica para exibir e atualizar o badge de notificações
     if (state.unreadUpdates > 0) {
         dom.updatesBadge.textContent = state.unreadUpdates > 9 ? '9+' : state.unreadUpdates;
         dom.updatesBadge.classList.remove('hidden');
@@ -267,10 +224,8 @@ export function renderApp() {
 
     const isLibraryActive = state.activeTab === 'library';
     const isUpdatesActive = state.activeTab === 'updates';
-
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
     dom.libraryControls.classList.toggle('hidden', !isLibraryActive);
-    
     dom.updatesContent.classList.toggle('hidden', !isUpdatesActive);
     dom.contentContainer.classList.toggle('hidden', isUpdatesActive);
     dom.paginationControls.classList.toggle('hidden', isUpdatesActive);
