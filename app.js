@@ -1,6 +1,7 @@
 import { initializeStore, store } from './store.js';
 import { fetchAndProcessMangaData } from './api.js';
 import { renderApp, getDOM, showNotification, showUpdatePopup, showGroupedUpdatePopup } from './ui.js';
+import { getLastCheckTimestamp, setLastCheckTimestamp } from './cache.js';
 
 function setupEventListeners() {
     const dom = getDOM();
@@ -10,7 +11,6 @@ function setupEventListeners() {
         if (tabButton) {
             const tabName = tabButton.dataset.tab;
             store.setActiveTab(tabName);
-            // ATUALIZADO: Marca as atualizações como lidas ao visitar a aba
             if (tabName === 'updates') {
                 store.markUpdatesAsRead();
             }
@@ -66,7 +66,6 @@ function setupEventListeners() {
             window.location.reload();
         }
 
-        // NOVO: Trata o clique na notificação agrupada para mudar de aba
         const groupedNotification = e.target.closest('.notification-grouped');
         if (groupedNotification && groupedNotification.dataset.tabTarget) {
             e.preventDefault();
@@ -103,11 +102,11 @@ function setupEventListeners() {
     });
 }
 
-function findNewChapterUpdates(oldManga, newManga) {
+async function findNewChapterUpdates(oldManga, newManga) {
     const oldMangaMap = new Map(oldManga.map(m => [m.url, m]));
     const newUpdates = [];
     
-    const lastCheckTimestamp = parseInt(localStorage.getItem('lastCheckTimestamp') || '0');
+    const lastCheckTimestamp = parseInt(await getLastCheckTimestamp() || '0');
 
     newManga.forEach(manga => {
         const oldVersion = oldMangaMap.get(manga.url);
@@ -140,7 +139,6 @@ function findNewChapterUpdates(oldManga, newManga) {
     return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-// ATUALIZADO: Lógica principal de notificação
 async function checkForUpdates() {
     const { settings, allManga: oldMangaData, favorites } = store.getState();
     if (!settings.notificationsEnabled || oldMangaData.length === 0) {
@@ -152,13 +150,12 @@ async function checkForUpdates() {
     try {
         const { data: newMangaData } = await fetchAndProcessMangaData(() => {});
         
-        const newUpdates = findNewChapterUpdates(oldMangaData, newMangaData);
+        const newUpdates = await findNewChapterUpdates(oldMangaData, newMangaData);
         
         if (newUpdates.length > 0) {
             console.log(`${newUpdates.length} obra(s) com novos capítulos.`, newUpdates);
             store.addUpdates(newUpdates);
             
-            // Separa as atualizações entre favoritos e não-favoritos
             const favoriteUpdates = [];
             const otherUpdates = [];
 
@@ -170,10 +167,8 @@ async function checkForUpdates() {
                 }
             });
 
-            // Mostra notificações individuais para favoritos
             favoriteUpdates.forEach(update => showUpdatePopup(update));
 
-            // Mostra uma notificação agrupada para os outros, se houver
             if (otherUpdates.length > 0) {
                 showGroupedUpdatePopup(otherUpdates.length);
             }
@@ -183,7 +178,7 @@ async function checkForUpdates() {
             console.log("Nenhum novo capítulo encontrado.");
         }
 
-        localStorage.setItem('lastCheckTimestamp', Date.now().toString());
+        await setLastCheckTimestamp(Date.now().toString());
 
     } catch (error) {
         console.error("Erro ao verificar atualizações de capítulos:", error);
@@ -192,7 +187,7 @@ async function checkForUpdates() {
 
 async function initializeApp() {
     const dom = getDOM();
-    initializeStore();
+    await initializeStore();
     store.subscribe(renderApp);
     setupEventListeners();
     renderApp(); 
@@ -206,7 +201,7 @@ async function initializeApp() {
         dom.subtitle.textContent = `${mangaData.length} obras no catálogo.`;
 
         if (updated) {
-            localStorage.setItem('lastCheckTimestamp', Date.now().toString());
+            await setLastCheckTimestamp(Date.now().toString());
             showNotification("O catálogo foi atualizado com sucesso!");
         }
 
