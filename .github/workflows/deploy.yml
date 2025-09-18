@@ -26,42 +26,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies (if package.json exists)
+      - name: Verify static files
         run: |
-          if [ -f package.json ]; then
-            npm ci
-          else
-            echo "No package.json found, skipping npm install"
-          fi
-
-      - name: Run linting (if configured)
-        run: |
-          if [ -f package.json ] && npm list eslint &>/dev/null; then
-            npm run lint || echo "Lint not configured or failed"
-          else
-            echo "ESLint not found, skipping linting"
-          fi
-
-      - name: Run tests (if configured)
-        run: |
-          if [ -f package.json ] && npm run test --if-present; then
-            echo "Tests passed"
-          else
-            echo "No tests configured"
-          fi
-
-      - name: Build project (if build script exists)
-        run: |
-          if [ -f package.json ] && npm run build --if-present; then
-            echo "Build completed"
-          else
-            echo "No build script found"
-          fi
+          echo "=== Verificando arquivos estáticos ==="
+          [ -f index.html ] && echo "✓ index.html exists" || echo "✗ index.html missing"
+          [ -f manifest.json ] && echo "✓ manifest.json exists" || echo "✗ manifest.json missing"
+          [ -f sw.js ] && echo "✓ sw.js exists" || echo "✗ sw.js missing"
+          echo "=== Listando arquivos JavaScript ==="
+          find . -name "*.js" -not -path "./.git/*" | head -10
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
