@@ -19,6 +19,15 @@ export const store = {
         notify();
     },
 
+    // NOVO: Adiciona um lote de mangás ao catálogo existente
+    addMangaToCatalog(mangaArray) {
+        const validManga = mangaArray.filter(m => m && !m.error);
+        if (validManga.length > 0) {
+            state.allManga = [...state.allManga, ...validManga];
+            notify();
+        }
+    },
+
     setFavorites(favoritesSet) {
         state.favorites = favoritesSet;
         notify();
