@@ -5,15 +5,15 @@ import { getLastCheckTimestamp, setLastCheckTimestamp } from './cache.js';
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.register('./sw.js');
+            // ADICIONADO: { type: 'module' }
+            const registration = await navigator.serviceWorker.register('./sw.js', { type: 'module' });
             console.log('Service Worker registrado com sucesso:', registration);
             
-            // Verifica se a API de Sincronização Periódica existe
             if ('periodicSync' in registration) {
                 const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
                 if (status.state === 'granted') {
                     await registration.periodicSync.register('check-for-updates', {
-                        minInterval: 6 * 60 * 60 * 1000, // A cada 6 horas
+                        minInterval: 6 * 60 * 60 * 1000,
                     });
                     console.log('Sincronização periódica registrada.');
                 } else {
@@ -111,14 +111,12 @@ function setupEventListeners() {
         store.setSettings({ popupsEnabled: e.target.checked });
     });
 
-    // Roda a verificação de updates quando a aba fica visível
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             checkForUpdatesOnFocus();
         }
     });
 
-    // Checa a hash da URL ao carregar a página
     window.addEventListener('load', () => {
         if (window.location.hash === '#updates') {
             store.setActiveTab('updates');
@@ -126,14 +124,13 @@ function setupEventListeners() {
     });
 }
 
-// Esta função verifica as atualizações quando o usuário volta para a aba
 async function checkForUpdatesOnFocus() {
     const { settings, allManga: oldMangaData } = store.getState();
     if (!settings.notificationsEnabled || oldMangaData.length === 0) return;
 
     console.log("Verificando atualizações ao focar na aba...");
     try {
-        const worker = new Worker('./update-worker.js');
+        const worker = new Worker('./update-worker.js', { type: 'module' });
         worker.postMessage({ command: 'start-fetch' });
         
         worker.onmessage = async (event) => {
@@ -193,7 +190,8 @@ async function initializeApp() {
     setupEventListeners();
     renderApp();
 
-    const updateWorker = new Worker('./update-worker.js');
+    // ADICIONADO: { type: 'module' }
+    const updateWorker = new Worker('./update-worker.js', { type: 'module' });
     
     updateWorker.onmessage = async (event) => {
         const { type, payload } = event.data;
