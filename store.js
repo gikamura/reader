@@ -5,9 +5,12 @@ let state = getInitialState();
 
 const subscribers = new Set();
 
+const notify = () => subscribers.forEach(callback => callback());
+
 export const store = {
     subscribe(callback) {
         subscribers.add(callback);
+        return () => subscribers.delete(callback);
     },
 
     getState() {
@@ -19,11 +22,12 @@ export const store = {
         notify();
     },
 
-    // NOVO: Adiciona um lote de mangás ao catálogo existente
     addMangaToCatalog(mangaArray) {
         const validManga = mangaArray.filter(m => m && !m.error);
         if (validManga.length > 0) {
-            state.allManga = [...state.allManga, ...validManga];
+            const existingUrls = new Set(state.allManga.map(m => m.url));
+            const newManga = validManga.filter(m => !existingUrls.has(m.url));
+            state.allManga = [...state.allManga, ...newManga];
             notify();
         }
     },
@@ -34,34 +38,32 @@ export const store = {
     },
 
     toggleFavorite(mangaUrl) {
-        if (state.favorites.has(mangaUrl)) {
-            state.favorites.delete(mangaUrl);
-        } else {
-            state.favorites.add(mangaUrl);
-        }
+        state.favorites.has(mangaUrl) ? state.favorites.delete(mangaUrl) : state.favorites.add(mangaUrl);
         saveFavoritesToCache(state.favorites);
         notify();
     },
 
     setUpdates(updatesArray) {
-        state.updates = updatesArray.slice(0, 30);
-        state.unreadUpdates = 0;
-        saveUpdatesToCache(state.updates);
+        state.updates = updatesArray.slice(0, 50);
+        state.unreadUpdates = updatesArray.filter(u => u.read === false).length;
         notify();
     },
 
     addUpdates(newUpdates) {
         if (newUpdates.length === 0) return;
-        const updatedList = [...newUpdates, ...state.updates];
-        state.updates = updatedList.slice(0, 30);
+        const updatesWithReadState = newUpdates.map(u => ({ ...u, read: false }));
+        const updatedList = [...updatesWithReadState, ...state.updates];
+        state.updates = updatedList.slice(0, 50);
         state.unreadUpdates += newUpdates.length;
         saveUpdatesToCache(state.updates);
         notify();
     },
     
-    markUpdatesAsRead() {
+    markAllUpdatesAsRead() {
         if (state.unreadUpdates > 0) {
             state.unreadUpdates = 0;
+            state.updates = state.updates.map(u => ({ ...u, read: true }));
+            saveUpdatesToCache(state.updates);
             notify();
         }
     },
@@ -72,58 +74,24 @@ export const store = {
         notify();
     },
 
-    setCurrentPage(page) {
-        state.currentPage = page;
-        notify();
-    },
-
-    setSearchQuery(query) {
-        state.searchQuery = query;
-        notify();
-    },
-
-    setActiveTab(tab) {
-        state.activeTab = tab;
-        notify();
-    },
-
-    setActiveTypeFilter(type) {
-        state.activeTypeFilter = type;
-        notify();
-    },
-    
-    setActiveStatusFilter(status) {
-        state.activeStatusFilter = status;
-        notify();
-    },
-    
-    setLibrarySortOrder(order) {
-        state.librarySortOrder = order;
-        notify();
-    },
-
-    setLoading(isLoading) {
-        state.isLoading = isLoading;
-        notify();
-    },
-
-    setError(errorMessage) {
-        state.error = errorMessage;
-        notify();
-    }
+    setCurrentPage: (page) => { state.currentPage = page; notify(); },
+    setSearchQuery: (query) => { state.searchQuery = query; notify(); },
+    setActiveTab: (tab) => { state.activeTab = tab; notify(); },
+    setActiveTypeFilter: (type) => { state.activeTypeFilter = type; notify(); },
+    setActiveStatusFilter: (status) => { state.activeStatusFilter = status; notify(); },
+    setLibrarySortOrder: (order) => { state.librarySortOrder = order; notify(); },
+    setLoading: (isLoading) => { state.isLoading = isLoading; notify(); },
+    setError: (errorMessage) => { state.error = errorMessage; notify(); },
 };
 
-function notify() {
-    subscribers.forEach(callback => callback());
-}
-
 export async function initializeStore() {
-    const favorites = await loadFavoritesFromCache();
-    store.setFavorites(favorites);
+    const [favorites, settings, updates] = await Promise.all([
+        loadFavoritesFromCache(),
+        loadSettingsFromCache(),
+        loadUpdatesFromCache()
+    ]);
     
-    const settings = await loadSettingsFromCache();
+    store.setFavorites(favorites);
     store.setSettings(settings);
-
-    const updates = await loadUpdatesFromCache();
     store.setUpdates(updates);
 }
