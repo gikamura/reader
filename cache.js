@@ -34,7 +34,6 @@ const initDB = () => {
                 dbInstance.createObjectStore(FAVORITES_STORE, { keyPath: 'url' });
             }
             if (!dbInstance.objectStoreNames.contains(UPDATES_STORE)) {
-                // Adicionamos um índice 'timestamp' para ordenar
                 const updatesStore = dbInstance.createObjectStore(UPDATES_STORE, { autoIncrement: true });
                 updatesStore.createIndex('timestamp', 'timestamp', { unique: false });
             }
@@ -166,23 +165,46 @@ export const saveSettingsToCache = async (settingsObject) => {
     });
 };
 
+// ==========================================================
+// FUNÇÃO CORRIGIDA
+// ==========================================================
 export const loadUpdatesFromCache = async () => {
     await initDB();
     return new Promise((resolve) => {
+        const updates = [];
         const store = getStore(UPDATES_STORE, 'readonly');
         const index = store.index('timestamp');
-        const request = index.getAll(null, 'prev'); // Ordena do mais novo para o mais antigo
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => resolve([]);
+
+        // Abre um cursor com a direção 'prev' para ordenar do mais novo para o mais antigo
+        const request = index.openCursor(null, 'prev'); 
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                // Adiciona o valor do cursor ao array
+                updates.push(cursor.value);
+                // Continua para o próximo item
+                cursor.continue();
+            } else {
+                // O cursor terminou de percorrer os itens
+                resolve(updates);
+            }
+        };
+
+        request.onerror = (event) => {
+            console.error("Erro ao carregar atualizações via cursor:", event.target.error);
+            resolve([]); // Retorna um array vazio em caso de erro
+        };
     });
 };
+// ==========================================================
 
 export const saveUpdatesToCache = async (updatesArray) => {
     await initDB();
     const transaction = db.transaction(UPDATES_STORE, 'readwrite');
     const store = transaction.objectStore(UPDATES_STORE);
     store.clear();
-    updatesArray.slice(0, 50).forEach(update => { // Aumentamos o limite para 50
+    updatesArray.slice(0, 50).forEach(update => {
         store.add(update);
     });
     return new Promise((resolve, reject) => {
