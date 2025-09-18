@@ -36,7 +36,6 @@ export const store = {
 
     setUpdates(updatesArray) {
         state.updates = updatesArray.slice(0, 30);
-        // ATUALIZADO: Considera-se que as atualizações carregadas do cache já foram vistas.
         state.unreadUpdates = 0;
         saveUpdatesToCache(state.updates);
         notify();
@@ -46,18 +45,14 @@ export const store = {
         if (newUpdates.length === 0) return;
         const updatedList = [...newUpdates, ...state.updates];
         state.updates = updatedList.slice(0, 30);
-        // ATUALIZADO: Incrementa o contador de não lidas com o número de novas atualizações.
         state.unreadUpdates += newUpdates.length;
         saveUpdatesToCache(state.updates);
         notify();
     },
     
-    // NOVO: Função para marcar as atualizações como lidas.
     markUpdatesAsRead() {
         if (state.unreadUpdates > 0) {
             state.unreadUpdates = 0;
-            // Opcional: Futuramente, você pode adicionar um status 'read: true' em cada item
-            // e salvar no cache aqui. Por ora, apenas zerar o contador já resolve a UX do badge.
             notify();
         }
     },
@@ -113,13 +108,13 @@ function notify() {
     subscribers.forEach(callback => callback());
 }
 
-export function initializeStore() {
-    const favorites = loadFavoritesFromCache();
+export async function initializeStore() {
+    const favorites = await loadFavoritesFromCache();
     store.setFavorites(favorites);
     
-    const settings = loadSettingsFromCache();
+    const settings = await loadSettingsFromCache();
     store.setSettings(settings);
 
-    const updates = loadUpdatesFromCache();
+    const updates = await loadUpdatesFromCache();
     store.setUpdates(updates);
 }
