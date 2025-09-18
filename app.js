@@ -142,23 +142,17 @@ async function findNewChapterUpdates(oldManga, newManga) {
 async function checkForUpdates() {
     const { settings, allManga: oldMangaData, favorites } = store.getState();
     if (!settings.notificationsEnabled || oldMangaData.length === 0) {
-        console.log("Notificações desabilitadas ou dados iniciais não carregados.");
         return;
     }
 
-    console.log("Verificando por atualizações de capítulos...");
     try {
         const { data: newMangaData } = await fetchAndProcessMangaData(() => {});
-        
         const newUpdates = await findNewChapterUpdates(oldMangaData, newMangaData);
         
         if (newUpdates.length > 0) {
-            console.log(`${newUpdates.length} obra(s) com novos capítulos.`, newUpdates);
             store.addUpdates(newUpdates);
-            
             const favoriteUpdates = [];
             const otherUpdates = [];
-
             newUpdates.forEach(update => {
                 if (favorites.has(update.manga.url)) {
                     favoriteUpdates.push(update);
@@ -166,20 +160,13 @@ async function checkForUpdates() {
                     otherUpdates.push(update);
                 }
             });
-
             favoriteUpdates.forEach(update => showUpdatePopup(update));
-
             if (otherUpdates.length > 0) {
                 showGroupedUpdatePopup(otherUpdates.length);
             }
-
             store.setAllManga(newMangaData);
-        } else {
-            console.log("Nenhum novo capítulo encontrado.");
         }
-
         await setLastCheckTimestamp(Date.now().toString());
-
     } catch (error) {
         console.error("Erro ao verificar atualizações de capítulos:", error);
     }
@@ -192,13 +179,30 @@ async function initializeApp() {
     setupEventListeners();
     renderApp(); 
 
-    try {
-        const { data: mangaData, updated } = await fetchAndProcessMangaData((message) => {
-            dom.subtitle.textContent = message;
-        });
+    // Função que será executada a cada lote processado
+    const onBatchProcessed = (batch) => {
+        // Remove o loader principal e exibe o conteúdo na chegada do primeiro lote
+        if (store.getState().isLoading) {
+            store.setLoading(false); 
+        }
+        store.addMangaToCatalog(batch);
         
-        store.setAllManga(mangaData);
-        dom.subtitle.textContent = `${mangaData.length} obras no catálogo.`;
+        const currentCount = store.getState().allManga.length;
+        dom.subtitle.textContent = `${currentCount} obras carregadas...`;
+    };
+
+    try {
+        const { data: finalMangaData, updated } = await fetchAndProcessMangaData(
+            (message) => dom.subtitle.textContent = message,
+            onBatchProcessed // Passando a nova função como callback
+        );
+        
+        // Se o catálogo veio do cache, a função acima retorna os dados de uma vez
+        if (finalMangaData && store.getState().allManga.length === 0) {
+            store.setAllManga(finalMangaData);
+        }
+
+        dom.subtitle.textContent = `${store.getState().allManga.length} obras no catálogo.`;
 
         if (updated) {
             await setLastCheckTimestamp(Date.now().toString());
@@ -210,7 +214,9 @@ async function initializeApp() {
         const errorMsg = `Erro ao carregar o catálogo. Verifique sua conexão. (${error.message})`;
         store.setError(errorMsg);
     } finally {
-        store.setLoading(false);
+        if(store.getState().isLoading) {
+            store.setLoading(false);
+        }
     }
 }
 
