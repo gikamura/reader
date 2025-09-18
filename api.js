@@ -1,213 +1,150 @@
-const DB_NAME = 'gikamuraDB';
-const DB_VERSION = 1;
+import { getMangaCache, setMangaCache, getMangaCacheVersion, setMangaCacheVersion, clearMangaCache } from './cache.js';
+import { INDEX_URL, PROXIES } from './constants.js';
 
-const MANGA_STORE = 'mangaCatalog';
-const FAVORITES_STORE = 'favorites';
-const UPDATES_STORE = 'updates';
-const SETTINGS_STORE = 'settings';
-const METADATA_STORE = 'metadata';
-
-let db;
-
-const initDB = () => {
-    return new Promise((resolve, reject) => {
-        if (db) return resolve(db);
-
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = (event) => {
-            console.error("Erro ao abrir o IndexedDB:", event);
-            reject("Erro ao abrir o banco de dados.");
-        };
-
-        request.onsuccess = (event) => {
-            db = event.target.result;
-            resolve(db);
-        };
-
-        request.onupgradeneeded = (event) => {
-            const dbInstance = event.target.result;
-            if (!dbInstance.objectStoreNames.contains(MANGA_STORE)) {
-                dbInstance.createObjectStore(MANGA_STORE, { keyPath: 'url' });
-            }
-            if (!dbInstance.objectStoreNames.contains(FAVORITES_STORE)) {
-                dbInstance.createObjectStore(FAVORITES_STORE, { keyPath: 'url' });
-            }
-            if (!dbInstance.objectStoreNames.contains(UPDATES_STORE)) {
-                const updatesStore = dbInstance.createObjectStore(UPDATES_STORE, { autoIncrement: true });
-                updatesStore.createIndex('timestamp', 'timestamp', { unique: false });
-            }
-            if (!dbInstance.objectStoreNames.contains(SETTINGS_STORE)) {
-                dbInstance.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });
-            }
-            if (!dbInstance.objectStoreNames.contains(METADATA_STORE)) {
-                dbInstance.createObjectStore(METADATA_STORE, { keyPath: 'key' });
-            }
-        };
-    });
-};
-
-const getStore = (storeName, mode) => {
-    return db.transaction(storeName, mode).objectStore(storeName);
-};
-
-const clearStore = (storeName) => {
-    return new Promise((resolve, reject) => {
-        const store = getStore(storeName, 'readwrite');
-        const request = store.clear();
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(`Erro ao limpar a store ${storeName}: ${event.target.error}`);
-    });
-};
-
-export const getMangaCache = async () => {
-    await initDB();
-    return new Promise((resolve, reject) => {
-        const store = getStore(MANGA_STORE, 'readonly');
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result.length > 0 ? request.result : null);
-        request.onerror = (event) => {
-            console.error("Erro ao buscar cache de mangás:", event.target.error);
-            reject(null);
-        };
-    });
-};
-
-export const setMangaCache = async (data) => {
-    await initDB();
-    const transaction = db.transaction(MANGA_STORE, 'readwrite');
-    const store = transaction.objectStore(MANGA_STORE);
-    store.clear();
-    data.forEach(item => store.put(item));
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => reject(event.target.error);
-    });
-};
-
-const getMetadata = async (key) => {
-    await initDB();
-    return new Promise((resolve) => {
-        const store = getStore(METADATA_STORE, 'readonly');
-        const request = store.get(key);
-        request.onsuccess = () => resolve(request.result ? request.result.value : null);
-        request.onerror = () => resolve(null);
-    });
-};
-
-const setMetadata = async (key, value) => {
-    await initDB();
-    return new Promise((resolve, reject) => {
-        const store = getStore(METADATA_STORE, 'readwrite');
-        const request = store.put({ key, value });
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(`Erro ao salvar metadado ${key}: ${event.target.error}`);
-    });
-};
-
-// ==========================================================
-// FUNÇÃO ADICIONADA DE VOLTA
-// ==========================================================
-export const clearMangaCache = async () => {
-    await initDB();
-    await clearStore(MANGA_STORE);
-    await setMetadata('cacheVersion', null); // Também limpa a versão
-};
-// ==========================================================
-
-export const loadFavoritesFromCache = async () => {
-    await initDB();
-    return new Promise((resolve, reject) => {
-        const store = getStore(FAVORITES_STORE, 'readonly');
-        const request = store.getAll();
-        request.onsuccess = () => {
-            const favUrls = request.result.map(item => item.url);
-            resolve(new Set(favUrls));
-        };
-        request.onerror = () => resolve(new Set());
-    });
-};
-
-export const saveFavoritesToCache = async (favoritesSet) => {
-    await initDB();
-    const transaction = db.transaction(FAVORITES_STORE, 'readwrite');
-    const store = transaction.objectStore(FAVORITES_STORE);
-    store.clear();
-    Array.from(favoritesSet).forEach(url => store.put({ url }));
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => reject(event.target.error);
-    });
-};
-
-export const getMangaCacheVersion = () => getMetadata('cacheVersion');
-export const setMangaCacheVersion = (version) => setMetadata('cacheVersion', version);
-export const getLastCheckTimestamp = () => getMetadata('lastCheckTimestamp');
-export const setLastCheckTimestamp = (timestamp) => setMetadata('lastCheckTimestamp', timestamp);
-
-export const loadSettingsFromCache = async () => {
-    await initDB();
-    return new Promise((resolve) => {
-        const store = getStore(SETTINGS_STORE, 'readonly');
-        const request = store.getAll();
-        request.onsuccess = () => {
-            const defaults = { notificationsEnabled: true, popupsEnabled: true };
-            const settingsFromDB = request.result.reduce((acc, setting) => {
-                acc[setting.key] = setting.value;
-                return acc;
-            }, {});
-            resolve({ ...defaults, ...settingsFromDB });
-        };
-        request.onerror = () => resolve({ notificationsEnabled: true, popupsEnabled: true });
-    });
-};
-
-export const saveSettingsToCache = async (settingsObject) => {
-    await initDB();
-    const transaction = db.transaction(SETTINGS_STORE, 'readwrite');
-    const store = transaction.objectStore(SETTINGS_STORE);
-    for (const key in settingsObject) {
-        store.put({ key: key, value: settingsObject[key] });
+const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
+    const { timeout } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(resource, { ...options, signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(id);
     }
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => reject(event.target.error);
-    });
 };
 
-export const loadUpdatesFromCache = async () => {
-    await initDB();
-    return new Promise((resolve) => {
-        const updates = [];
-        const store = getStore(UPDATES_STORE, 'readonly');
-        const index = store.index('timestamp');
-        const request = index.openCursor(null, 'prev'); 
-        request.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if (cursor) {
-                updates.push(cursor.value);
-                cursor.continue();
-            } else {
-                resolve(updates);
+const b64DecodeUnicode = (str) => {
+    return decodeURIComponent(atob(str).split('').map((c) => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+};
+
+const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
+    try {
+        const cubariMatch = chapterUrl.match(/cubari\.moe\/read\/gist\/([^/]+)/);
+        if (!cubariMatch) return { url: chapterUrl, error: true, title: preFetchedData.title || 'URL Inválida' };
+
+        const base64url = decodeURIComponent(cubariMatch[1]);
+        let b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) { b64 += '='; }
+        
+        let decodedPath = b64DecodeUnicode(b64);
+
+        if (decodedPath.startsWith('raw/')) decodedPath = decodedPath.substring(4);
+        decodedPath = decodedPath.replace('/refs/heads/', '/');
+        
+        const pathSegments = decodedPath.split('/');
+        const encodedPath = pathSegments.map(segment => encodeURIComponent(segment)).join('/');
+        
+        const jsonUrl = `https://raw.githubusercontent.com/${encodedPath}`;
+
+        const response = await fetchWithTimeout(jsonUrl);
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        
+        const data = await response.json();
+        
+        const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
+            !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
+        
+        const imageUrl = preFetchedData.cover_url 
+            ? preFetchedData.cover_url 
+            : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
+
+        return {
+            url: chapterUrl,
+            title: preFetchedData.title || data.title || 'N/A',
+            description: data.description || '',
+            imageUrl: imageUrl,
+            author: data.author,
+            artist: data.artist,
+            genres: data.genres,
+            type: preFetchedData.type || null,
+            status: data.status,
+            chapters: data.chapters,
+            chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
+            lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
+            error: false
+        };
+    } catch (error) {
+        console.error(`Falha ao processar ${chapterUrl} para a obra "${preFetchedData.title}":`, error);
+        return { url: chapterUrl, title: preFetchedData.title || 'Falha ao Carregar', description: error.message, imageUrl: 'https://placehold.co/256x384/1f2937/ef4444?text=Erro', error: true };
+    }
+};
+
+async function processInBatches(items, batchSize, delay, onBatchProcessed) {
+    let results = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        
+        const batchPromises = batch.map(([key, mangaSeries]) => {
+            const representativeChapter = mangaSeries.chapters[0];
+            if (!representativeChapter || !representativeChapter.url) {
+                console.warn('Série sem capítulos ou URL válida:', mangaSeries.title);
+                return null;
             }
-        };
-        request.onerror = (event) => {
-            console.error("Erro ao carregar atualizações via cursor:", event.target.error);
-            resolve([]);
-        };
-    });
-};
 
-export const saveUpdatesToCache = async (updatesArray) => {
-    await initDB();
-    const transaction = db.transaction(UPDATES_STORE, 'readwrite');
-    const store = transaction.objectStore(UPDATES_STORE);
-    store.clear();
-    updatesArray.slice(0, 50).forEach(update => {
-        store.add(update);
-    });
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => reject(event.target.error);
-    });
-};
+            let type = null;
+            if (key.startsWith('KR')) {
+                type = 'manhwa';
+            } else if (key.startsWith('JP')) {
+                type = 'manga';
+            } else if (key.startsWith('CH')) {
+                type = 'manhua';
+            }
+
+            const preFetchedData = {
+                title: mangaSeries.title,
+                cover_url: representativeChapter.cover_url || null,
+                type: type
+            };
+            return processMangaUrl(representativeChapter.url, preFetchedData);
+
+        }).filter(p => p !== null);
+
+        const batchResults = await Promise.all(batchPromises);
+        
+        if (onBatchProcessed) {
+            onBatchProcessed(batchResults);
+        }
+
+        results = results.concat(batchResults);
+        
+        if (i + batchSize < items.length) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    return results;
+}
+
+export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
+    updateStatus('Verificando por atualizações...');
+    
+    const response = await fetchWithTimeout(INDEX_URL);
+    if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
+    const indexData = await response.json();
+    
+    const remoteVersion = indexData.metadata.version;
+    const localVersion = await getMangaCacheVersion();
+
+    if (remoteVersion === localVersion) {
+        const cachedData = await getMangaCache();
+        if (cachedData) {
+            updateStatus(`Catálogo atualizado. Carregando ${cachedData.length} obras do cache...`);
+            return { data: cachedData, updated: false };
+        }
+    }
+    
+    updateStatus('Nova versão encontrada! Atualizando o catálogo...');
+    await clearMangaCache();
+
+    const allMangaSeries = Object.entries(indexData.mangas);
+    
+    const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, onBatchProcessed);
+    
+    const allManga = allMangaResults.filter(m => m && !m.error);
+
+    await setMangaCache(allManga);
+    await setMangaCacheVersion(remoteVersion);
+    
+    return { data: allManga, updated: true };
+}
