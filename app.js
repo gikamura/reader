@@ -6,6 +6,28 @@ import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { GestureNavigationManager } from './touch-gestures.js';
 import { analytics } from './local-analytics.js';
 
+// Configurar autocomplete
+let autocomplete = null;
+const setupAutocomplete = () => {
+    const dom = getDOM();
+    const { allManga } = store.getState();
+    if (allManga.length > 0 && !autocomplete) {
+        autocomplete = new SmartAutocomplete(dom.searchInput, allManga, {
+            maxSuggestions: 8,
+            showRecentSearches: true,
+            onSelect: (suggestion) => {
+                // Analytics: track autocomplete selection
+                analytics?.trackUserInteraction('autocomplete', 'select', {
+                    suggestionType: suggestion.type,
+                    query: suggestion.text
+                });
+            }
+        });
+    } else if (allManga.length > 0 && autocomplete) {
+        autocomplete.updateDataSource(allManga);
+    }
+};
+
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
@@ -88,26 +110,8 @@ function setupEventListeners() {
         }
     });
 
-    // Configurar autocomplete
-    let autocomplete = null;
-    const setupAutocomplete = () => {
-        const { allManga } = store.getState();
-        if (allManga.length > 0 && !autocomplete) {
-            autocomplete = new SmartAutocomplete(dom.searchInput, allManga, {
-                maxSuggestions: 8,
-                showRecentSearches: true,
-                onSelect: (suggestion) => {
-                    // Analytics: track autocomplete selection
-                    analytics?.trackUserInteraction('autocomplete', 'select', {
-                        suggestionType: suggestion.type,
-                        query: suggestion.text
-                    });
-                }
-            });
-        } else if (allManga.length > 0 && autocomplete) {
-            autocomplete.updateDataSource(allManga);
-        }
-    };
+    // Chamar função de configuração de autocomplete
+    setupAutocomplete();
 
     dom.paginationControls.addEventListener('click', (e) => {
         if (e.target.matches('.pagination-btn')) {
