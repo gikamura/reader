@@ -1,17 +1,262 @@
-// REMOVIDO: importScripts(...)
+// Service Worker simplificado para evitar problemas de dependências
+const CACHE_VERSION = 'gikamura-v1.4';
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
+const IMAGE_CACHE = `${CACHE_VERSION}-images`;
+const API_CACHE = `${CACHE_VERSION}-api`;
 
-// ADICIONADO: importações de módulo
-import { getMangaCache, loadUpdatesFromCache, saveUpdatesToCache, getLastCheckTimestamp, setLastCheckTimestamp } from './cache.js';
-import { fetchAndProcessMangaData } from './api.js';
+const STATIC_ASSETS = [
+    './',
+    './index.html',
+    './app.js',
+    './store.js',
+    './ui.js',
+    './api.js',
+    './cache.js',
+    './constants.js',
+    './lazy-loader.js',
+    './error-handler.js',
+    './smart-debounce.js',
+    './touch-gestures.js',
+    './smart-cache.js',
+    './local-analytics.js',
+    './manifest.json'
+];
 
 const NOTIFICATION_TAG = 'gikamura-update';
 
+// Install event
+self.addEventListener('install', (event) => {
+    console.log('Service Worker instalando...');
+    event.waitUntil(
+        caches.open(STATIC_CACHE).then(cache => {
+            return cache.addAll(STATIC_ASSETS);
+        }).catch(error => {
+            console.warn('Erro ao instalar cache:', error);
+        })
+    );
+    self.skipWaiting();
+});
+
+// Activate event
+self.addEventListener('activate', (event) => {
+    console.log('Service Worker ativando...');
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames
+                    .filter(name => !name.startsWith(CACHE_VERSION))
+                    .map(name => caches.delete(name))
+            );
+        })
+    );
+    self.clients.claim();
+});
+
+// Fetch event
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+
+    event.respondWith(
+        handleRequest(event.request)
+    );
+});
+
+async function handleRequest(request) {
+    const url = new URL(request.url);
+
+    try {
+        // Estratégia baseada no tipo de recurso
+        if (isStaticAsset(url)) {
+            return await cacheFirst(request);
+        } else if (isImage(url)) {
+            return await cacheFirst(request);
+        } else if (isAPI(url)) {
+            return await networkFirst(request);
+        } else {
+            return await staleWhileRevalidate(request);
+        }
+    } catch (error) {
+        console.error('Erro no fetch:', error);
+        return await handleError(request);
+    }
+}
+
+function isStaticAsset(url) {
+    return STATIC_ASSETS.some(asset =>
+        url.pathname.endsWith(asset.replace('./', ''))
+    );
+}
+
+function isImage(url) {
+    return url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg)$/);
+}
+
+function isAPI(url) {
+    return url.pathname.includes('api') ||
+           url.hostname.includes('github') ||
+           url.hostname.includes('raw.githubusercontent');
+}
+
+async function cacheFirst(request) {
+    const cacheName = getCacheName(request);
+    const cache = await caches.open(cacheName);
+    const cachedResponse = await cache.match(request);
+
+    if (cachedResponse) {
+        return cachedResponse;
+    }
+
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+    }
+
+    return networkResponse;
+}
+
+async function networkFirst(request) {
+    const cacheName = getCacheName(request);
+    const cache = await caches.open(cacheName);
+
+    try {
+        const networkResponse = await fetch(request);
+        if (networkResponse.ok) {
+            cache.put(request, networkResponse.clone());
+        }
+        return networkResponse;
+    } catch (error) {
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse) {
+            return cachedResponse;
+        }
+        throw error;
+    }
+}
+
+async function staleWhileRevalidate(request) {
+    const cacheName = getCacheName(request);
+    const cache = await caches.open(cacheName);
+    const cachedResponse = await cache.match(request);
+
+    // Tentar atualizar em background
+    fetch(request).then(response => {
+        if (response.ok) {
+            cache.put(request, response.clone());
+        }
+    }).catch(() => {
+        // Ignorar erros de revalidação
+    });
+
+    return cachedResponse || await fetch(request);
+}
+
+function getCacheName(request) {
+    const url = new URL(request.url);
+
+    if (isImage(url)) {
+        return IMAGE_CACHE;
+    } else if (isAPI(url)) {
+        return API_CACHE;
+    } else if (isStaticAsset(url)) {
+        return STATIC_CACHE;
+    } else {
+        return DYNAMIC_CACHE;
+    }
+}
+
+async function handleError(request) {
+    // Tentar resposta em cache como último recurso
+    const cacheNames = await caches.keys();
+    for (const name of cacheNames) {
+        const cache = await caches.open(name);
+        const response = await cache.match(request);
+        if (response) {
+            return response;
+        }
+    }
+
+    // Resposta de erro para documentos
+    if (request.destination === 'document') {
+        return new Response(
+            `<!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Gikamura - Offline</title>
+                <style>
+                    body {
+                        font-family: Inter, sans-serif;
+                        background: #050505;
+                        color: #e5e7eb;
+                        text-align: center;
+                        padding: 2rem;
+                        margin: 0;
+                    }
+                    .container {
+                        max-width: 400px;
+                        margin: 0 auto;
+                        padding: 2rem;
+                        background: #1a1a1a;
+                        border-radius: 1rem;
+                    }
+                    h1 { color: #3b82f6; margin-bottom: 1rem; }
+                    button {
+                        background: #3b82f6;
+                        color: white;
+                        border: none;
+                        padding: 0.75rem 1.5rem;
+                        border-radius: 0.5rem;
+                        cursor: pointer;
+                        margin-top: 1rem;
+                        font-size: 1rem;
+                    }
+                    button:hover { background: #2563eb; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🔌 Modo Offline</h1>
+                    <p>Você está offline no momento. Algumas funcionalidades podem estar limitadas.</p>
+                    <button onclick="window.location.reload()">Tentar Novamente</button>
+                </div>
+            </body>
+            </html>`,
+            {
+                status: 200,
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            }
+        );
+    }
+
+    throw new Error('Recurso não disponível offline');
+}
+
+// Periodic sync para verificar atualizações
 self.addEventListener('periodicsync', (event) => {
     if (event.tag === 'check-for-updates') {
         event.waitUntil(handleUpdateCheck());
     }
 });
 
+async function handleUpdateCheck() {
+    try {
+        console.log('Verificando atualizações em background...');
+
+        // Implementação básica de verificação de updates
+        // Pode ser expandida futuramente
+        const response = await fetch('https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json');
+
+        if (response.ok) {
+            console.log('Verificação de atualizações concluída');
+        }
+    } catch (error) {
+        console.warn('Erro na verificação de atualizações:', error);
+    }
+}
+
+// Notification click handler
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
@@ -19,78 +264,4 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-async function findNewChapterUpdates(oldManga, newManga) {
-    const oldMangaMap = new Map(oldManga.map(m => [m.url, m]));
-    const newUpdates = [];
-    const lastCheckTimestamp = parseInt(await getLastCheckTimestamp() || '0');
-
-    newManga.forEach(manga => {
-        const oldVersion = oldMangaMap.get(manga.url);
-        if (!oldVersion || !manga.chapters) return;
-
-        const newChaptersInManga = [];
-        for (const chapterKey in manga.chapters) {
-            if (!oldVersion.chapters || !oldVersion.chapters[chapterKey]) {
-                const newChapter = manga.chapters[chapterKey];
-                const chapterTimestamp = parseInt(newChapter.last_updated) * 1000;
-                if (chapterTimestamp > lastCheckTimestamp) {
-                    newChaptersInManga.push({
-                        title: newChapter.title || `Capítulo ${chapterKey}`,
-                        timestamp: chapterTimestamp,
-                    });
-                }
-            }
-        }
-        if (newChaptersInManga.length > 0) {
-            newUpdates.push({
-                manga: manga,
-                newChapters: newChaptersInManga.sort((a,b) => b.timestamp - a.timestamp),
-                timestamp: Date.now()
-            });
-        }
-    });
-    return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
-}
-
-async function handleUpdateCheck() {
-    console.log('[Service Worker] Verificando atualizações em segundo plano...');
-    try {
-        const oldData = await getMangaCache();
-        if (!oldData || oldData.length === 0) {
-            console.log('[Service Worker] Cache local vazio, pulando verificação.');
-            return;
-        }
-
-        const { data: newData, updated } = await fetchAndProcessMangaData(() => {});
-
-        if (updated) {
-            const updates = await findNewChapterUpdates(oldData, newData);
-
-            if (updates.length > 0) {
-                console.log(`[Service Worker] ${updates.length} atualizações encontradas.`);
-                const updatesWithReadState = updates.map(u => ({ ...u, read: false }));
-                const currentUpdates = await loadUpdatesFromCache();
-                await saveUpdatesToCache([...updatesWithReadState, ...currentUpdates]);
-                await setLastCheckTimestamp(Date.now().toString());
-
-                const title = 'Gikamura - Novas Atualizações!';
-                const body = updates.length === 1
-                    ? `Novo capítulo em "${updates[0].manga.title}"!`
-                    : `${updates.length} obras foram atualizadas. Clique para ver.`;
-
-                await self.registration.showNotification(title, {
-                    body: body,
-                    icon: '/icon-192.png',
-                    badge: '/badge-72.png',
-                    tag: NOTIFICATION_TAG
-                });
-            } else {
-                console.log('[Service Worker] Nenhum novo capítulo encontrado.');
-            }
-        } else {
-            console.log('[Service Worker] Catálogo já estava atualizado.');
-        }
-    } catch (error) {
-        console.error('[Service Worker] Erro durante a verificação de atualizações:', error);
-    }
-}
+console.log('Service Worker carregado com sucesso');

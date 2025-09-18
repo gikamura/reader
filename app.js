@@ -1,6 +1,10 @@
 import { initializeStore, store } from './store.js';
 import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup } from './ui.js';
 import { getLastCheckTimestamp, setLastCheckTimestamp } from './cache.js';
+import './lazy-loader.js';
+import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
+import { GestureNavigationManager } from './touch-gestures.js';
+import { analytics } from './local-analytics.js';
 
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
@@ -46,21 +50,64 @@ function setupEventListeners() {
                 window.location.hash = 'updates';
             }
             store.setActiveTab(tabName);
+
+            // Analytics: track tab navigation
+            analytics?.trackPageView(tabName);
         }
     });
     
     dom.markAllAsReadBtn.addEventListener('click', () => {
         store.markAllUpdatesAsRead();
+
+        // Analytics: track mark all as read
+        analytics?.trackUserInteraction('mark_all_read_btn', 'click');
     });
 
-    let searchTimeout;
-    dom.searchInput.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            store.setSearchQuery(e.target.value);
+    // Sistema de busca inteligente com debounce
+    const smartSearchDebounce = new SmartDebounce(
+        (query) => {
+            store.setSearchQuery(query);
             store.setCurrentPage(1);
-        }, 300);
+        },
+        {
+            wait: 250,
+            minLength: 0, // Permitir busca vazia para limpar
+            maxWait: 1000,
+            immediate: false
+        }
+    );
+
+    dom.searchInput.addEventListener('input', (e) => {
+        smartSearchDebounce.execute(e.target.value);
+
+        // Analytics: track search (with debounce)
+        if (e.target.value.length >= 2) {
+            setTimeout(() => {
+                analytics?.trackSearch(e.target.value, 0, 'search_input');
+            }, 500);
+        }
     });
+
+    // Configurar autocomplete
+    let autocomplete = null;
+    const setupAutocomplete = () => {
+        const { allManga } = store.getState();
+        if (allManga.length > 0 && !autocomplete) {
+            autocomplete = new SmartAutocomplete(dom.searchInput, allManga, {
+                maxSuggestions: 8,
+                showRecentSearches: true,
+                onSelect: (suggestion) => {
+                    // Analytics: track autocomplete selection
+                    analytics?.trackUserInteraction('autocomplete', 'select', {
+                        suggestionType: suggestion.type,
+                        query: suggestion.text
+                    });
+                }
+            });
+        } else if (allManga.length > 0 && autocomplete) {
+            autocomplete.updateDataSource(allManga);
+        }
+    };
 
     dom.paginationControls.addEventListener('click', (e) => {
         if (e.target.matches('.pagination-btn')) {
@@ -82,9 +129,16 @@ function setupEventListeners() {
         
         const favoriteBtn = e.target.closest('.favorite-btn');
         if (favoriteBtn) {
-            store.toggleFavorite(favoriteBtn.dataset.url);
+            const mangaUrl = favoriteBtn.dataset.url;
+            const { favorites } = store.getState();
+            const action = favorites.has(mangaUrl) ? 'remove' : 'add';
+
+            store.toggleFavorite(mangaUrl);
             favoriteBtn.classList.add('pulsing');
             favoriteBtn.addEventListener('animationend', () => favoriteBtn.classList.remove('pulsing'), { once: true });
+
+            // Analytics: track favorite action
+            analytics?.trackFavoriteAction(mangaUrl, action);
         }
 
         if (e.target.id === 'reload-page-btn') window.location.reload();
@@ -93,6 +147,12 @@ function setupEventListeners() {
         if (groupedNotification) {
             e.preventDefault();
             store.setActiveTab('updates');
+        }
+
+        // Analytics: track manga view
+        const mangaLink = e.target.closest('a[href]');
+        if (mangaLink && mangaLink.href.includes('cubari.moe')) {
+            analytics?.trackMangaView(mangaLink.href, mangaLink.querySelector('h3')?.textContent || 'Unknown', 'card_click');
         }
     });
 
@@ -190,6 +250,12 @@ async function initializeApp() {
     setupEventListeners();
     renderApp();
 
+    // Configurar gestos touch
+    let gestureManager = null;
+    if ('ontouchstart' in window) {
+        gestureManager = new GestureNavigationManager(store);
+    }
+
     // ADICIONADO: { type: 'module' }
     const updateWorker = new Worker('./update-worker.js', { type: 'module' });
     
@@ -203,6 +269,9 @@ async function initializeApp() {
                 if (store.getState().isLoading) store.setLoading(false);
                 store.addMangaToCatalog(payload);
                 dom.subtitle.textContent = `${store.getState().allManga.length} obras carregadas...`;
+
+                // Configurar autocomplete conforme dados carregam
+                setupAutocomplete();
                 break;
             case 'complete':
                 const { data, updated } = payload;
@@ -215,12 +284,22 @@ async function initializeApp() {
                     showNotification("O catálogo foi atualizado com sucesso!");
                 }
                 if(store.getState().isLoading) store.setLoading(false);
+
+                // Configurar autocomplete final
+                setupAutocomplete();
+
                 updateWorker.terminate();
                 break;
             case 'error':
                 store.setError(`Erro no worker: ${payload}`);
                 store.setLoading(false);
                 updateWorker.terminate();
+
+                // Analytics: track worker error
+                analytics?.trackError(new Error(payload), {
+                    context: 'update_worker',
+                    severity: 'error'
+                });
                 break;
         }
     };
