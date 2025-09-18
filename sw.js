@@ -55,7 +55,14 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+    // Filtrar apenas requests válidos
     if (event.request.method !== 'GET') return;
+
+    // Filtrar esquemas não suportados
+    const url = new URL(event.request.url);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return; // Ignorar chrome-extension:, moz-extension:, etc.
+    }
 
     event.respondWith(
         handleRequest(event.request)
@@ -99,6 +106,12 @@ function isAPI(url) {
 }
 
 async function cacheFirst(request) {
+    // Verificar se o request é válido para cache
+    const requestUrl = new URL(request.url);
+    if (requestUrl.protocol !== 'https:' && requestUrl.protocol !== 'http:') {
+        return fetch(request); // Não cachear, apenas fazer fetch
+    }
+
     const cacheName = getCacheName(request);
     const cache = await caches.open(cacheName);
     const cachedResponse = await cache.match(request);
@@ -109,7 +122,10 @@ async function cacheFirst(request) {
 
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-        cache.put(request, networkResponse.clone());
+        // Verificar novamente antes de cachear
+        if (requestUrl.protocol === 'https:' || requestUrl.protocol === 'http:') {
+            cache.put(request, networkResponse.clone());
+        }
     }
 
     return networkResponse;
