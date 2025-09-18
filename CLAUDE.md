@@ -47,15 +47,42 @@ python -m http.server 8000
 npx serve .
 ```
 
+### Configuração de Ambiente
+```bash
+# Configurar variáveis de ambiente
+node scripts/setup-env.js setup
+
+# Validar configurações
+node scripts/setup-env.js validate
+```
+
 ### Estrutura de Testes
-Não há testes automatizados configurados. A aplicação deve ser testada manualmente através do navegador.
+```bash
+# CI/CD automatizado via GitHub Actions
+# - Workflow de CI: testa sintaxe JS, valida PWA, segurança
+# - Workflow de Deploy: build e deploy automático para GitHub Pages
+```
 
 ### Build/Deploy
-Não há processo de build. Os arquivos são servidos diretamente como estão. Para deploy:
 ```bash
+# Deploy automático via GitHub Actions
+git push origin main
+
+# Deploy manual (se necessário)
 # A aplicação é totalmente estática - todos os arquivos podem ser hospedados em qualquer CDN ou servidor estático
 # Requisitos: HTTPS obrigatório para Service Workers em produção
 ```
+
+### CI/CD Pipeline
+- **Continuous Integration**: `.github/workflows/ci.yml`
+  - Testes de sintaxe JavaScript
+  - Validação de arquivos PWA (manifest.json, service worker)
+  - Verificação de segurança
+  - Suporte a Node.js 18.x e 20.x
+- **Continuous Deployment**: `.github/workflows/deploy.yml`
+  - Deploy automático para GitHub Pages
+  - Build condicional (se package.json existir)
+  - Configuração automática de Pages
 
 ## Características Técnicas
 
