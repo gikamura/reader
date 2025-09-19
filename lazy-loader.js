@@ -113,18 +113,62 @@ class LazyImageLoader {
             return;
         }
 
-        // Simplesmente atribui a URL ao src.
-        // O atributo 'onerror' na tag <img> em ui.js cuidará de erros.
-        img.src = originalSrc;
+        // Sistema agressivo de carregamento com múltiplos fallbacks
+        this.loadImageWithFallbacks(img, originalSrc);
+    }
+
+    loadImageWithFallbacks(img, originalSrc) {
+        let retryCount = 0;
+        const maxRetries = 3;
+        const retryDelay = 1000; // 1 segundo
+
+        const attemptLoad = () => {
+            const tempImg = new Image();
+            tempImg.crossOrigin = "anonymous";
+
+            tempImg.onload = () => {
+                img.src = originalSrc;
+                img.classList.remove('lazy-loading');
+                img.classList.add('lazy-loaded');
+                img.style.opacity = '1';
+                this.loadedImages.add(originalSrc);
+
+                img.dispatchEvent(new CustomEvent('lazyloaded', {
+                    detail: { originalSrc, success: true }
+                }));
+            };
+
+            tempImg.onerror = () => {
+                retryCount++;
+                console.warn(`Falha no carregamento (tentativa ${retryCount}/${maxRetries}):`, originalSrc);
+
+                if (retryCount < maxRetries) {
+                    // Retry com delay exponencial
+                    setTimeout(attemptLoad, retryDelay * Math.pow(2, retryCount - 1));
+                } else {
+                    // Fallback final: usar placeholder de erro
+                    this.setErrorImage(img, originalSrc);
+                }
+            };
+
+            tempImg.src = originalSrc;
+        };
+
+        attemptLoad();
+    }
+
+    setErrorImage(img, originalSrc) {
+        // Usar um placeholder robusto que sempre funciona
+        const fallbackUrl = `https://via.placeholder.com/256x384/1f2937/ef4444?text=${encodeURIComponent('Erro de Carregamento')}`;
+
+        img.src = fallbackUrl;
         img.classList.remove('lazy-loading');
-        img.classList.add('lazy-loaded');
+        img.classList.add('lazy-error');
         img.style.opacity = '1';
+        this.failedImages.add(originalSrc);
 
-        this.loadedImages.add(originalSrc);
-
-        // Disparar evento para consistência
         img.dispatchEvent(new CustomEvent('lazyloaded', {
-            detail: { originalSrc }
+            detail: { originalSrc, success: false, fallback: true }
         }));
     }
 
