@@ -119,15 +119,15 @@ class LazyImageLoader {
 
     loadImageWithFallbacks(img, originalSrc) {
         let retryCount = 0;
-        const maxRetries = 3;
+        const maxRetries = 4;
         const retryDelay = 300;
 
         // URLs de fallback múltiplas para máxima confiabilidade
         const fallbackStrategies = [
             originalSrc, // Tentativa original
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(originalSrc)}`, // Proxy CORS 1
-            `https://cors-anywhere.herokuapp.com/${originalSrc}`, // Proxy CORS 2 (se disponível)
-            this.createFallbackUrl(256, 384, 'Erro') // Fallback final garantido
+            originalSrc.replace('https://', 'http://'), // Tentar HTTP se HTTPS falhar
+            this.createFallbackUrl(256, 384, 'Carregando'), // Placeholder informativo
+            this.createFallbackUrl(256, 384, 'Indisponível') // Fallback final garantido
         ];
 
         const attemptLoad = () => {
