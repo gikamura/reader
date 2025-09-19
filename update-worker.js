@@ -1,16 +1,50 @@
 // Constantes do Worker
 const INDEX_URL = 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json';
 
-// Fetch com timeout usando AbortController
-const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
-    const { timeout } = options;
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await fetch(resource, { ...options, signal: controller.signal });
-        return response;
-    } finally {
-        clearTimeout(id);
+// Fetch com timeout robusto e retry
+const fetchWithTimeout = async (resource, options = { timeout: 30000 }) => {
+    const { timeout, retries = 2, ...fetchOptions } = options;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        const controller = new AbortController();
+        let timeoutId;
+
+        try {
+            // Promise de timeout
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    controller.abort();
+                    reject(new Error(`Timeout after ${timeout}ms`));
+                }, timeout);
+            });
+
+            // Promise de fetch
+            const fetchPromise = fetch(resource, {
+                ...fetchOptions,
+                signal: controller.signal
+            });
+
+            // Race entre fetch e timeout
+            const response = await Promise.race([fetchPromise, timeoutPromise]);
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            return response;
+
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            // Se é a última tentativa, throw error
+            if (attempt === retries) {
+                throw error;
+            }
+
+            // Wait antes de retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
     }
 };
 

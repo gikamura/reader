@@ -261,7 +261,12 @@ async function handleError(request) {
 // Periodic sync para verificar atualizações
 self.addEventListener('periodicsync', (event) => {
     if (event.tag === 'check-for-updates') {
-        event.waitUntil(handleUpdateCheck());
+        event.waitUntil(
+            handleUpdateCheck().catch(error => {
+                console.warn('Erro no periodic sync:', error);
+                // Não propagar o erro para evitar message port issues
+            })
+        );
     }
 });
 
@@ -285,8 +290,33 @@ async function handleUpdateCheck() {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
-        clients.openWindow('/#updates')
+        clients.openWindow('/#updates').catch(error => {
+            console.warn('Erro ao abrir janela na notificação:', error);
+            // Tentar estratégia alternativa se disponível
+            return clients.matchAll().then(clients => {
+                if (clients.length > 0) {
+                    clients[0].focus();
+                    clients[0].navigate('/#updates');
+                }
+            }).catch(() => {
+                // Ignorar se não conseguir abrir/focar
+            });
+        })
     );
+});
+
+// Handler global para erros não tratados
+self.addEventListener('error', (event) => {
+    console.warn('Erro não tratado no Service Worker:', event.error);
+    // Prevenir propagação para evitar message port errors
+    event.preventDefault();
+});
+
+// Handler para promises rejeitadas
+self.addEventListener('unhandledrejection', (event) => {
+    console.warn('Promise rejeitada no Service Worker:', event.reason);
+    // Prevenir propagação para evitar message port errors
+    event.preventDefault();
 });
 
 console.log('Service Worker carregado com sucesso');

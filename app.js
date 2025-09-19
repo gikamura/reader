@@ -126,8 +126,8 @@ const setupIntegratedSearchSystem = () => {
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            // ADICIONADO: { type: 'module' }
-            const registration = await navigator.serviceWorker.register('./sw.js', { type: 'module' });
+            // Service Worker clássico (não é módulo ES6)
+            const registration = await navigator.serviceWorker.register('./sw.js');
             console.log('Service Worker registrado com sucesso:', registration);
             
             if ('periodicSync' in registration) {
