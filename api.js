@@ -40,15 +40,8 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         
         const jsonUrl = `https://raw.githubusercontent.com/${encodedPath}`;
 
-        // Tentar busca direta primeiro, depois proxies
-        let response;
-        try {
-            response = await fetchWithTimeout(jsonUrl, { timeout: 8000 });
-            console.log('Busca direta bem-sucedida para:', jsonUrl);
-        } catch (directError) {
-            console.warn('Busca direta falhou, tentando proxies para:', jsonUrl);
-            response = await robustFetcher.fetchWithFallback(jsonUrl);
-        }
+        // Buscar diretamente do GitHub (sem proxies CORS)
+        const response = await fetchWithTimeout(jsonUrl, { timeout: 10000 });
         if (!response.ok) throw new Error(`Status: ${response.status}`);
         
         const data = await response.json();
@@ -147,17 +140,9 @@ export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
     updateStatus('Verificando por atualizações...');
 
     try {
-        // Tentar buscar diretamente do GitHub primeiro (sem proxy)
-        let response;
-        try {
-            updateStatus('Buscando índice diretamente do GitHub...');
-            response = await fetchWithTimeout(INDEX_URL, { timeout: 10000 });
-            console.log('Busca direta do INDEX_URL bem-sucedida');
-        } catch (directError) {
-            console.warn('Busca direta falhou, tentando com proxies:', directError);
-            updateStatus('Busca direta falhou, tentando proxies...');
-            response = await robustFetcher.fetchWithFallback(INDEX_URL);
-        }
+        // Buscar diretamente do GitHub (raw.githubusercontent.com não tem CORS)
+        updateStatus('Buscando índice do GitHub...');
+        const response = await fetchWithTimeout(INDEX_URL, { timeout: 15000 });
         if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
         const indexData = await response.json();
 
