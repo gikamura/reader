@@ -119,11 +119,20 @@ class LazyImageLoader {
 
     loadImageWithFallbacks(img, originalSrc) {
         let retryCount = 0;
-        const maxRetries = 2;
-        const retryDelay = 800;
+        const maxRetries = 3;
+        const retryDelay = 300;
+
+        // URLs de fallback múltiplas para máxima confiabilidade
+        const fallbackStrategies = [
+            originalSrc, // Tentativa original
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(originalSrc)}`, // Proxy CORS 1
+            `https://cors-anywhere.herokuapp.com/${originalSrc}`, // Proxy CORS 2 (se disponível)
+            this.createFallbackUrl(256, 384, 'Erro') // Fallback final garantido
+        ];
 
         const attemptLoad = () => {
-            // Tenta carregar diretamente primeiro
+            const currentUrl = fallbackStrategies[retryCount] || fallbackStrategies[fallbackStrategies.length - 1];
+
             img.onload = () => {
                 img.classList.remove('lazy-loading');
                 img.classList.add('lazy-loaded');
@@ -131,30 +140,32 @@ class LazyImageLoader {
                 this.loadedImages.add(originalSrc);
 
                 img.dispatchEvent(new CustomEvent('lazyloaded', {
-                    detail: { originalSrc, success: true }
+                    detail: { originalSrc, success: true, strategy: retryCount }
                 }));
             };
 
             img.onerror = () => {
                 retryCount++;
-                console.warn(`Falha no carregamento (tentativa ${retryCount}/${maxRetries}):`, originalSrc);
+                console.warn(`Falha no carregamento (tentativa ${retryCount}/${maxRetries}):`, currentUrl);
 
-                if (retryCount < maxRetries) {
-                    // Retry com URL de proxy para contornar CORS
-                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalSrc)}&w=256&h=384&fit=cover&default=https://placehold.co/256x384/1f2937/ef4444?text=Erro`;
+                if (retryCount < maxRetries && retryCount < fallbackStrategies.length) {
                     setTimeout(() => {
-                        img.src = proxiedUrl;
+                        img.src = fallbackStrategies[retryCount];
                     }, retryDelay);
                 } else {
-                    // Fallback final garantido
+                    // Fallback absoluto garantido
                     this.setErrorImage(img, originalSrc);
                 }
             };
 
-            img.src = originalSrc;
+            img.src = currentUrl;
         };
 
         attemptLoad();
+    }
+
+    createFallbackUrl(width, height, text) {
+        return `https://placehold.co/${width}x${height}/1f2937/ef4444?text=${encodeURIComponent(text)}`;
     }
 
     setErrorImage(img, originalSrc) {
