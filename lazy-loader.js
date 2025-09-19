@@ -125,7 +125,7 @@ class LazyImageLoader {
         // URLs de fallback múltiplas para máxima confiabilidade
         const fallbackStrategies = [
             originalSrc, // Tentativa original
-            originalSrc.replace('https://', 'http://'), // Tentar HTTP se HTTPS falhar
+            originalSrc.startsWith('https://') ? originalSrc.replace('https://', 'http://') : originalSrc, // HTTP se HTTPS falhar
             this.createFallbackUrl(256, 384, 'Carregando'), // Placeholder informativo
             this.createFallbackUrl(256, 384, 'Indisponível') // Fallback final garantido
         ];
