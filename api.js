@@ -40,7 +40,15 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         
         const jsonUrl = `https://raw.githubusercontent.com/${encodedPath}`;
 
-        const response = await robustFetcher.fetchWithFallback(jsonUrl);
+        // Tentar busca direta primeiro, depois proxies
+        let response;
+        try {
+            response = await fetchWithTimeout(jsonUrl, { timeout: 8000 });
+            console.log('Busca direta bem-sucedida para:', jsonUrl);
+        } catch (directError) {
+            console.warn('Busca direta falhou, tentando proxies para:', jsonUrl);
+            response = await robustFetcher.fetchWithFallback(jsonUrl);
+        }
         if (!response.ok) throw new Error(`Status: ${response.status}`);
         
         const data = await response.json();
@@ -172,10 +180,19 @@ export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
         const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, onBatchProcessed);
 
         const allManga = allMangaResults.filter(m => m && !m.error);
+        const failedCount = allMangaResults.length - allManga.length;
+
+        // Se muitos falharam, dar feedback específico
+        if (failedCount > allManga.length) {
+            console.warn(`${failedCount} mangás falharam ao carregar devido a restrições CORS`);
+            updateStatus(`Carregado parcialmente: ${allManga.length} de ${allMangaResults.length} mangás (limitações de rede)`);
+        } else {
+            updateStatus(`${allManga.length} mangás carregados com sucesso`);
+        }
 
         await setMangaCache(allManga);
         await setMangaCacheVersion(remoteVersion);
-    
+
         return { data: allManga, updated: true };
     } catch (error) {
         console.error('Erro crítico ao buscar dados:', error);
