@@ -136,7 +136,6 @@ const createCardMetadata = (icon, title, value) => `
     </div>`;
 
 const createCardHTML = (data, isFavorite) => {
-    // ... (O conteúdo desta função permanece o mesmo, pode copiar da sua versão)
     const iconUser = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>`;
     const iconPaintBrush = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
     const iconBookOpen = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg>`;
@@ -146,11 +145,13 @@ const createCardHTML = (data, isFavorite) => {
     const type = data.type ? data.type.charAt(0).toUpperCase() + data.type.slice(1) : 'N/A';
     const description = data.description || 'Sem descrição disponível.';
     const chapterCount = data.chapterCount || 'N/A';
+    const escapedTitle = data.title ? data.title.replace(/"/g, '&quot;') : 'N/A';
+
     return `
     <div class="relative bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
             <div class="w-1/3 flex-shrink-0 bg-[#050505]">
-                <img data-src="${data.imageUrl}" alt="Capa de ${data.title}" class="w-full h-full object-cover lazy-image" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/ef4444?text=Erro';"
+                <img data-src="${data.imageUrl}" alt="Capa de ${escapedTitle}" class="w-full h-full object-cover lazy-image" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/ef4444?text=Erro';">
             </div>
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <div class="h-10"></div>
@@ -165,7 +166,7 @@ const createCardHTML = (data, isFavorite) => {
                 </div>
             </div>
             <div class="absolute top-0 left-0 right-0 px-4 py-2 bg-gradient-to-b from-black/70 to-transparent z-10 pointer-events-none">
-                 <h3 class="text-lg font-bold truncate text-white" title="${data.title}">${data.title}</h3>
+                 <h3 class="text-lg font-bold truncate text-white" title="${escapedTitle}">${data.title}</h3>
             </div>
             <div class="absolute bottom-2 left-2 flex items-center gap-2 z-10">
                  <span class="bg-[#050505]/70 text-white font-semibold px-2 py-1 rounded-md text-xs backdrop-blur-sm" title="Status">${status}</span>
