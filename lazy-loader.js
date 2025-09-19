@@ -119,15 +119,12 @@ class LazyImageLoader {
 
     loadImageWithFallbacks(img, originalSrc) {
         let retryCount = 0;
-        const maxRetries = 3;
-        const retryDelay = 1000; // 1 segundo
+        const maxRetries = 2;
+        const retryDelay = 800;
 
         const attemptLoad = () => {
-            const tempImg = new Image();
-            tempImg.crossOrigin = "anonymous";
-
-            tempImg.onload = () => {
-                img.src = originalSrc;
+            // Tenta carregar diretamente primeiro
+            img.onload = () => {
                 img.classList.remove('lazy-loading');
                 img.classList.add('lazy-loaded');
                 img.style.opacity = '1';
@@ -138,20 +135,23 @@ class LazyImageLoader {
                 }));
             };
 
-            tempImg.onerror = () => {
+            img.onerror = () => {
                 retryCount++;
                 console.warn(`Falha no carregamento (tentativa ${retryCount}/${maxRetries}):`, originalSrc);
 
                 if (retryCount < maxRetries) {
-                    // Retry com delay exponencial
-                    setTimeout(attemptLoad, retryDelay * Math.pow(2, retryCount - 1));
+                    // Retry com URL de proxy para contornar CORS
+                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalSrc)}&w=256&h=384&fit=cover&default=https://via.placeholder.com/256x384/1f2937/ef4444?text=Erro`;
+                    setTimeout(() => {
+                        img.src = proxiedUrl;
+                    }, retryDelay);
                 } else {
-                    // Fallback final: usar placeholder de erro
+                    // Fallback final garantido
                     this.setErrorImage(img, originalSrc);
                 }
             };
 
-            tempImg.src = originalSrc;
+            img.src = originalSrc;
         };
 
         attemptLoad();

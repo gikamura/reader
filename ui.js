@@ -104,7 +104,7 @@ function createUpdateHistoryItemHTML(update) {
 
     return `
     <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
-        <img data-src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0 lazy-image" onerror="this.onerror=null;this.src='https://via.placeholder.com/48x64/1f2937/ef4444?text=!';">"
+        <img data-src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0 lazy-image" onerror="this.onerror=null;this.src='https://via.placeholder.com/48x64/1f2937/ef4444?text=!';">
         <div class="overflow-hidden">
             <p class="font-semibold text-white truncate">${manga.title}</p>
             <p class="text-sm text-gray-400 truncate">Novos capítulos: ${chapterText}</p>
