@@ -27,7 +27,7 @@ Esta é uma Progressive Web App (PWA) para leitura de mangás/manhwas/manhuas qu
 ### Workers
 
 - **sw.js**: Service Worker para funcionamento offline e sincronização periódica
-- **update-worker.js**: Web Worker para processamento assíncrono de dados
+- **update-worker.js**: Web Worker para processamento assíncrono de dados (usa `importScripts`, não ES6 modules)
 
 ## Fluxo de Dados
 
@@ -87,9 +87,9 @@ git push origin main
 ## Características Técnicas
 
 ### Dados Externos
-- **Source**: GitHub API (`INDEX_URL` em constants.js)
-- **Proxy**: Usa múltiplos proxies CORS para acesso a imagens
-- **Formato**: Processa URLs do Cubari.moe para acessar dados JSON
+- **Source**: GitHub Raw API (`INDEX_URL` em constants.js) - acesso direto sem proxies CORS
+- **Formato**: Processa URLs do Cubari.moe para acessar dados JSON do GitHub
+- **Arquitetura**: Fetch direto para `raw.githubusercontent.com` (sem CORS blocking)
 
 ### Sistema de Cache
 - **Versionamento**: Compara versões local vs remota
@@ -129,17 +129,33 @@ O store gerencia:
 ## Limitações e Considerações
 
 - **HTTPS Obrigatório**: Service Workers requerem HTTPS em produção
-- **CORS**: Dependente de proxies externos para algumas funcionalidades
-- **Cache**: Limpeza manual pode ser necessária durante desenvolvimento
-- **Workers**: Requer suporte moderno do navegador
+- **Workers Limitados**: Web Workers não suportam ES6 modules nem localStorage
+- **Cache Manual**: Limpeza manual pode ser necessária durante desenvolvimento
+- **Compatibilidade**: Requer suporte moderno do navegador para PWA features
+- **GitHub Raw**: Dependente da disponibilidade do raw.githubusercontent.com
 
 ## Debugging
 
+### Logs e Monitoramento
 Para debug, monitore:
 - Console do Service Worker (Application tab)
 - Network requests para GitHub API
 - LocalStorage e IndexedDB
 - Worker messages no console
+
+### Problemas Conhecidos
+1. **Web Workers**: Não podem usar ES6 modules (`import`/`export`) - usar `importScripts()`
+2. **localStorage em Workers**: Workers não têm acesso ao localStorage - gerenciar cache no contexto principal
+3. **SmartAutocomplete**: Pode interferir com busca principal - temporariamente desabilitado (app.js:117)
+4. **Tailwind CDN**: Warning sobre uso em produção - considerar PostCSS build
+5. **Periodic Sync**: Pode não ser permitido em alguns navegadores/contextos
+
+### Debugging Cards Não Renderizando
+Se os cards não aparecem:
+1. Verificar se Worker está executando (`update-worker.js` messages no console)
+2. Verificar fetch para GitHub Raw no Network tab
+3. Verificar se `store.allManga` está sendo populado
+4. Verificar se localStorage tem dados de cache válidos
 
 ### Performance
 - Processamento em lotes (100 itens por vez)
@@ -167,3 +183,22 @@ Para debug, monitore:
 - Versionamento inteligente de dados
 - Processamento assíncrono em Web Workers
 - Lazy loading de recursos sob demanda
+
+## Melhores Práticas para Desenvolvimento
+
+### Web Workers
+- **NUNCA** use `import`/`export` em Web Workers - use `importScripts()`
+- **NUNCA** acesse `localStorage` dentro de Workers - mova para contexto principal
+- Mantenha Workers simples e focados em processamento de dados
+- Use `postMessage()` para comunicação bidirecional
+
+### Cache e Estado
+- Sempre gerencie cache no contexto principal (`app.js`)
+- Use versionamento para invalidar cache quando necessário
+- Monitore o tamanho do localStorage (limite ~5-10MB)
+
+### Debugging e Performance
+- Use `console.log` para rastrear fluxo de Workers
+- Monitore Network tab para requests ao GitHub Raw
+- Verifique Application tab para Service Worker status
+- Use DevTools Performance para identificar gargalos
