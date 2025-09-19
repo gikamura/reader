@@ -298,7 +298,7 @@ async function checkForUpdatesOnFocus() {
                 'warning',
                 3000
             );
-        }, 30000); // 30 segundos
+        }, 120000); // 2 minutos
 
         worker.postMessage({ command: 'start-fetch' });
 
@@ -415,7 +415,7 @@ async function initializeApp() {
             'O carregamento demorou muito. Recarregue a página.',
             'error'
         );
-    }, 60000); // 1 minuto
+    }, 180000); // 3 minutos
 
     updateWorker.onmessage = async (event) => {
         try {
