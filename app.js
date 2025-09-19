@@ -1,6 +1,6 @@
 import { initializeStore, store } from './store.js';
 import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup } from './ui.js';
-import { getLastCheckTimestamp, setLastCheckTimestamp } from './cache.js';
+import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion } from './cache.js';
 import './lazy-loader.js';
 import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { GestureNavigationManager } from './touch-gestures.js';
@@ -278,9 +278,15 @@ async function initializeApp() {
                 setupAutocomplete();
                 break;
             case 'complete':
-                const { data, updated } = payload;
+                const { data, updated, version } = payload;
                 if (data && store.getState().allManga.length === 0) {
                     store.setAllManga(data);
+
+                    // Gerenciar cache no contexto principal (Worker não tem localStorage)
+                    if (updated && version) {
+                        setMangaCache(data);
+                        setMangaCacheVersion(version);
+                    }
                 }
                 dom.subtitle.textContent = `${store.getState().allManga.length} obras no catálogo.`;
                 if (updated) {

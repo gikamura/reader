@@ -1,39 +1,5 @@
-// Constantes do Worker (sem dependência de módulos ES6)
+// Constantes do Worker
 const INDEX_URL = 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json';
-const CACHE_KEY = 'mangaCatalogCache';
-const CACHE_VERSION_KEY = 'mangaCatalogVersion';
-
-// Funções de cache simplificadas para o Worker
-const getMangaCache = () => {
-    try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-        console.error('Erro ao recuperar cache:', error);
-        return null;
-    }
-};
-
-const setMangaCache = (data) => {
-    try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    } catch (error) {
-        console.error('Erro ao salvar cache:', error);
-    }
-};
-
-const getMangaCacheVersion = () => {
-    return localStorage.getItem(CACHE_VERSION_KEY) || null;
-};
-
-const setMangaCacheVersion = (version) => {
-    localStorage.setItem(CACHE_VERSION_KEY, version);
-};
-
-const clearMangaCache = () => {
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem(CACHE_VERSION_KEY);
-};
 
 // Fetch com timeout usando AbortController
 const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
@@ -171,20 +137,7 @@ async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
         if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
         const indexData = await response.json();
 
-        const remoteVersion = indexData.metadata.version;
-        const localVersion = await getMangaCacheVersion();
-
-        if (remoteVersion === localVersion) {
-            const cachedData = await getMangaCache();
-            if (cachedData) {
-                updateStatus(`Catálogo atualizado. Carregando ${cachedData.length} obras do cache...`);
-                return { data: cachedData, updated: false };
-            }
-        }
-
-        updateStatus('Nova versão encontrada! Atualizando o catálogo...');
-        await clearMangaCache();
-
+        updateStatus('Processando dados do catálogo...');
         const allMangaSeries = Object.entries(indexData.mangas);
 
         const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, onBatchProcessed);
@@ -199,10 +152,11 @@ async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
             updateStatus(`${allManga.length} mangás carregados com sucesso`);
         }
 
-        await setMangaCache(allManga);
-        await setMangaCacheVersion(remoteVersion);
-
-        return { data: allManga, updated: true };
+        return {
+            data: allManga,
+            updated: true,
+            version: indexData.metadata.version
+        };
     } catch (error) {
         console.error('Erro crítico ao buscar dados:', error);
         throw error;
