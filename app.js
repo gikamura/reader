@@ -194,7 +194,7 @@ async function checkForUpdatesOnFocus() {
 
     console.log("Verificando atualizações ao focar na aba...");
     try {
-        const worker = new Worker('./update-worker.js', { type: 'module' });
+        const worker = new Worker('./update-worker.js');
         worker.postMessage({ command: 'start-fetch' });
         
         worker.onmessage = async (event) => {
@@ -260,8 +260,8 @@ async function initializeApp() {
         gestureManager = new GestureNavigationManager(store);
     }
 
-    // ADICIONADO: { type: 'module' }
-    const updateWorker = new Worker('./update-worker.js', { type: 'module' });
+    // Worker compatível com importScripts
+    const updateWorker = new Worker('./update-worker.js');
     
     updateWorker.onmessage = async (event) => {
         const { type, payload } = event.data;
