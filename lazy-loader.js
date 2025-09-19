@@ -141,7 +141,7 @@ class LazyImageLoader {
 
                 if (retryCount < maxRetries) {
                     // Retry com URL de proxy para contornar CORS
-                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalSrc)}&w=256&h=384&fit=cover&default=https://via.placeholder.com/256x384/1f2937/ef4444?text=Erro`;
+                    const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(originalSrc)}&w=256&h=384&fit=cover&default=https://placehold.co/256x384/1f2937/ef4444?text=Erro`;
                     setTimeout(() => {
                         img.src = proxiedUrl;
                     }, retryDelay);
@@ -159,7 +159,7 @@ class LazyImageLoader {
 
     setErrorImage(img, originalSrc) {
         // Usar um placeholder robusto que sempre funciona
-        const fallbackUrl = `https://via.placeholder.com/256x384/1f2937/ef4444?text=${encodeURIComponent('Erro de Carregamento')}`;
+        const fallbackUrl = `https://placehold.co/256x384/1f2937/ef4444?text=${encodeURIComponent('Erro')}`;
 
         img.src = fallbackUrl;
         img.classList.remove('lazy-loading');
