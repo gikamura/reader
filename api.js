@@ -1,17 +1,17 @@
 import { getMangaCache, setMangaCache, getMangaCacheVersion, setMangaCacheVersion, clearMangaCache } from './cache.js';
-import { INDEX_URL, PROXIES } from './constants.js';
-import { RobustFetcher, errorNotificationManager } from './error-handler.js';
+import { INDEX_URL } from './constants.js';
+import { errorNotificationManager } from './error-handler.js';
 
-// Instância global do robust fetcher
-const robustFetcher = new RobustFetcher(PROXIES);
-
-// Função wrapper para compatibilidade
+// Fetch com timeout usando AbortController
 const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
+    const { timeout } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
     try {
-        return await robustFetcher.fetchWithTimeout(resource, options);
-    } catch (error) {
-        console.error('Fetch timeout error:', error);
-        throw error;
+        const response = await fetch(resource, { ...options, signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(id);
     }
 };
 
@@ -49,9 +49,9 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         const latestChapter = Object.values(data.chapters || {}).reduce((latest, chap) => 
             !latest || parseInt(chap.last_updated) > parseInt(latest.last_updated) ? chap : latest, null);
         
-        const imageUrl = preFetchedData.cover_url 
-            ? preFetchedData.cover_url 
-            : (data.cover ? `${PROXIES[0]}${encodeURIComponent(data.cover)}` : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
+        const imageUrl = preFetchedData.cover_url
+            ? preFetchedData.cover_url
+            : (data.cover ? data.cover : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
 
         return {
             url: chapterUrl,
@@ -71,10 +71,8 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
     } catch (error) {
         console.error(`Falha ao processar ${chapterUrl} para a obra "${preFetchedData.title}":`, error);
 
-        // Notificar erro se for crítico
-        if (error.message.includes('Todos os proxies falharam')) {
-            errorNotificationManager.showProxyError();
-        }
+        // Log do erro para debug
+        console.warn('Erro ao processar mangá:', error.message);
 
         return {
             url: chapterUrl,
@@ -169,8 +167,8 @@ export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
 
         // Se muitos falharam, dar feedback específico
         if (failedCount > allManga.length) {
-            console.warn(`${failedCount} mangás falharam ao carregar devido a restrições CORS`);
-            updateStatus(`Carregado parcialmente: ${allManga.length} de ${allMangaResults.length} mangás (limitações de rede)`);
+            console.warn(`${failedCount} mangás falharam ao carregar`);
+            updateStatus(`Carregado parcialmente: ${allManga.length} de ${allMangaResults.length} mangás`);
         } else {
             updateStatus(`${allManga.length} mangás carregados com sucesso`);
         }
@@ -182,15 +180,11 @@ export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
     } catch (error) {
         console.error('Erro crítico ao buscar dados:', error);
 
-        if (error.message.includes('Todos os proxies falharam')) {
-            errorNotificationManager.showCriticalError(
-                'Não foi possível conectar aos servidores. Verifique sua conexão e tente novamente.'
-            );
-        } else if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        if (error.name === 'AbortError' || error.message.includes('timeout')) {
             errorNotificationManager.showNetworkError();
         } else {
             errorNotificationManager.showCriticalError(
-                `Erro inesperado: ${error.message}`
+                `Erro ao carregar dados: ${error.message}`
             );
         }
 
