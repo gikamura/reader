@@ -111,7 +111,10 @@ function setupEventListeners() {
     });
 
     // Chamar função de configuração de autocomplete
-    setupAutocomplete();
+    // DEBUG: A linha abaixo foi comentada para testar um bug onde a busca principal não funciona.
+    // A suspeita é que a classe SmartAutocomplete está interferindo com o event listener do input da busca principal.
+    // Se a busca funcionar com esta linha comentada, o problema está na interação entre os dois sistemas.
+    // setupAutocomplete();
 
     dom.paginationControls.addEventListener('click', (e) => {
         if (e.target.matches('.pagination-btn')) {

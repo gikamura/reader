@@ -106,53 +106,26 @@ class LazyImageLoader {
         });
     }
 
-    async loadImage(img) {
+    loadImage(img) {
         const originalSrc = img.dataset.originalSrc;
 
         if (!originalSrc || this.loadedImages.has(originalSrc)) {
             return;
         }
 
-        try {
-            // Pré-carregar a imagem
-            const imageLoader = new Image();
-            imageLoader.crossOrigin = 'anonymous';
+        // Simplesmente atribui a URL ao src.
+        // O atributo 'onerror' na tag <img> em ui.js cuidará de erros.
+        img.src = originalSrc;
+        img.classList.remove('lazy-loading');
+        img.classList.add('lazy-loaded');
+        img.style.opacity = '1';
 
-            await new Promise((resolve, reject) => {
-                imageLoader.onload = resolve;
-                imageLoader.onerror = reject;
-                imageLoader.src = originalSrc;
-            });
+        this.loadedImages.add(originalSrc);
 
-            // Aplicar a imagem carregada
-            img.src = originalSrc;
-            img.classList.remove('lazy-loading');
-            img.classList.add('lazy-loaded');
-            img.style.opacity = '1';
-
-            this.loadedImages.add(originalSrc);
-
-            // Trigger evento customizado
-            img.dispatchEvent(new CustomEvent('lazyloaded', {
-                detail: { originalSrc }
-            }));
-
-        } catch (error) {
-            console.warn(`Falha ao carregar imagem: ${originalSrc}`, error);
-
-            // Aplicar imagem de erro
-            img.src = this.options.errorSvg;
-            img.classList.remove('lazy-loading');
-            img.classList.add('lazy-error');
-            img.style.opacity = '1';
-
-            this.failedImages.add(originalSrc);
-
-            // Trigger evento de erro
-            img.dispatchEvent(new CustomEvent('lazyerror', {
-                detail: { originalSrc, error }
-            }));
-        }
+        // Disparar evento para consistência
+        img.dispatchEvent(new CustomEvent('lazyloaded', {
+            detail: { originalSrc }
+        }));
     }
 
     loadAllImages() {
