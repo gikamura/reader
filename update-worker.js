@@ -1,6 +1,39 @@
-// Importar scripts necessários (compatibilidade com Web Worker)
-importScripts('./constants.js');
-importScripts('./cache.js');
+// Constantes do Worker (sem dependência de módulos ES6)
+const INDEX_URL = 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json';
+const CACHE_KEY = 'mangaCatalogCache';
+const CACHE_VERSION_KEY = 'mangaCatalogVersion';
+
+// Funções de cache simplificadas para o Worker
+const getMangaCache = () => {
+    try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+        console.error('Erro ao recuperar cache:', error);
+        return null;
+    }
+};
+
+const setMangaCache = (data) => {
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    } catch (error) {
+        console.error('Erro ao salvar cache:', error);
+    }
+};
+
+const getMangaCacheVersion = () => {
+    return localStorage.getItem(CACHE_VERSION_KEY) || null;
+};
+
+const setMangaCacheVersion = (version) => {
+    localStorage.setItem(CACHE_VERSION_KEY, version);
+};
+
+const clearMangaCache = () => {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(CACHE_VERSION_KEY);
+};
 
 // Fetch com timeout usando AbortController
 const fetchWithTimeout = async (resource, options = { timeout: 20000 }) => {
