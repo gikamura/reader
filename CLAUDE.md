@@ -65,24 +65,45 @@ node scripts/setup-env.js validate
 
 ### Build/Deploy
 ```bash
-# Deploy automático via GitHub Actions
+# Deploy para Produção
+./scripts/deploy.sh production
+# ou
 git push origin main
 
-# Deploy manual (se necessário)
-# A aplicação é totalmente estática - todos os arquivos podem ser hospedados em qualquer CDN ou servidor estático
-# Requisitos: HTTPS obrigatório para Service Workers em produção
+# Deploy para RC (Release Candidate)
+./scripts/deploy.sh rc
+# ou
+git push rc main
+
+# Gerenciar ambientes
+./scripts/setup-env.sh status        # Ver status atual
+./scripts/setup-env.sh switch rc     # Alternar para RC
+./scripts/setup-env.sh switch production # Alternar para produção
 ```
 
+### Ambientes
+- **Produção**: `gikamura/reader` → https://gikamura.github.io/reader/
+- **RC**: `gikamura/rc` → https://gikamura.github.io/rc/
+
 ### CI/CD Pipeline
+Ambos repositórios (Produção e RC) têm workflows independentes:
+
 - **Continuous Integration**: `.github/workflows/ci.yml`
   - Testes de sintaxe JavaScript
   - Validação de arquivos PWA (manifest.json, service worker)
-  - Verificação de segurança
+  - Verificação de segurança e audit
   - Suporte a Node.js 18.x e 20.x
+  - Executa em push/PR para main
+
 - **Continuous Deployment**: `.github/workflows/deploy.yml`
   - Deploy automático para GitHub Pages
-  - Build condicional (se package.json existir)
+  - Build de arquivos estáticos
   - Configuração automática de Pages
+  - Executa em push para main
+
+### GitHub Pages Setup
+- **Produção**: Configurado automaticamente
+- **RC**: Requer habilitação manual em Settings → Pages → Source: "GitHub Actions"
 
 ## Características Técnicas
 
@@ -202,3 +223,40 @@ Se os cards não aparecem:
 - Monitore Network tab para requests ao GitHub Raw
 - Verifique Application tab para Service Worker status
 - Use DevTools Performance para identificar gargalos
+
+## Fluxo de Trabalho (Workflow)
+
+### Desenvolvimento Recomendado
+1. **Desenvolver localmente**
+   ```bash
+   python -m http.server 8000
+   # Teste em http://localhost:8000
+   ```
+
+2. **Deploy para RC (teste)**
+   ```bash
+   git add -A && git commit -m "feat: nova funcionalidade"
+   ./scripts/deploy.sh rc
+   # Teste em https://gikamura.github.io/rc/
+   ```
+
+3. **Validar no RC**
+   - Testar funcionalidade completa
+   - Verificar workflows CI/CD
+   - Validar PWA features
+
+4. **Deploy para Produção**
+   ```bash
+   ./scripts/deploy.sh production
+   # Live em https://gikamura.github.io/reader/
+   ```
+
+### Monitoramento de Workflows
+```bash
+# Ver status de ambos ambientes
+./scripts/setup-env.sh status
+
+# Monitorar workflows
+gh run list --repo gikamura/reader --limit 3  # Produção
+gh run list --repo gikamura/rc --limit 3      # RC
+```
