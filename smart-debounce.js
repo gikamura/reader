@@ -142,7 +142,8 @@ export class SmartAutocomplete {
             minLength: 2,
             highlightMatches: true,
             showRecentSearches: true,
-            debounceTime: 200,
+            debounceTime: 300, // Aumentado para evitar conflitos
+            onInput: null, // Callback para coordenar com sistema principal
             ...options
         };
 
@@ -150,17 +151,18 @@ export class SmartAutocomplete {
         this.selectedIndex = -1;
         this.isVisible = false;
         this.recentSearches = this.loadRecentSearches();
+        this.isDestroyed = false;
 
         this.createDropdown();
         this.setupEventListeners();
 
-        // Debounce inteligente para suggestions
+        // Debounce inteligente para suggestions (separado do sistema principal)
         this.debouncedGetSuggestions = new SmartDebounce(
             this.getSuggestions.bind(this),
             {
                 wait: this.options.debounceTime,
                 minLength: this.options.minLength,
-                maxWait: 600
+                maxWait: 800
             }
         );
     }
@@ -175,16 +177,28 @@ export class SmartAutocomplete {
     }
 
     setupEventListeners() {
-        this.input.addEventListener('input', (e) => {
+        // Event listener para autocomplete (não interfere com sistema principal)
+        this.inputHandler = (e) => {
+            if (this.isDestroyed) return;
+
             const query = e.target.value.trim();
 
+            // Coordenar com sistema principal se callback definido
+            if (this.options.onInput) {
+                this.options.onInput(query);
+            }
+
+            // Gerenciar suggestions
             if (query.length === 0) {
                 this.showRecentSearches();
-            } else {
+            } else if (query.length >= this.options.minLength) {
                 this.debouncedGetSuggestions.execute(query);
+            } else {
+                this.hide();
             }
-        });
+        };
 
+        this.input.addEventListener('input', this.inputHandler);
         this.input.addEventListener('keydown', this.handleKeydown.bind(this));
         this.input.addEventListener('focus', this.handleFocus.bind(this));
         this.input.addEventListener('blur', this.handleBlur.bind(this));
@@ -192,11 +206,12 @@ export class SmartAutocomplete {
         this.dropdown.addEventListener('click', this.handleClick.bind(this));
 
         // Fechar dropdown ao clicar fora
-        document.addEventListener('click', (e) => {
-            if (!this.input.parentNode.contains(e.target)) {
+        this.outsideClickHandler = (e) => {
+            if (this.isDestroyed || !this.input.parentNode.contains(e.target)) {
                 this.hide();
             }
-        });
+        };
+        document.addEventListener('click', this.outsideClickHandler);
     }
 
     async getSuggestions(query) {
@@ -429,9 +444,29 @@ export class SmartAutocomplete {
     }
 
     destroy() {
-        this.debouncedGetSuggestions.cancel();
+        this.isDestroyed = true;
+
+        // Cancelar debounce
+        if (this.debouncedGetSuggestions) {
+            this.debouncedGetSuggestions.cancel();
+        }
+
+        // Remover event listeners
+        if (this.input && this.inputHandler) {
+            this.input.removeEventListener('input', this.inputHandler);
+        }
+        if (this.outsideClickHandler) {
+            document.removeEventListener('click', this.outsideClickHandler);
+        }
+
+        // Remover dropdown
         if (this.dropdown && this.dropdown.parentNode) {
             this.dropdown.parentNode.removeChild(this.dropdown);
         }
+
+        // Limpar referências
+        this.input = null;
+        this.dropdown = null;
+        this.suggestions = [];
     }
 }

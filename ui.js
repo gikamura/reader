@@ -2,6 +2,123 @@ import { store } from './store.js';
 import { ITEMS_PER_PAGE } from './constants.js';
 import { lazyLoader } from './lazy-loader.js';
 
+// Sistema de loading states e feedback visual
+class LoadingStateManager {
+    constructor() {
+        this.activeStates = new Set();
+        this.feedbackQueue = [];
+    }
+
+    show(stateId, message = 'Carregando...', options = {}) {
+        this.activeStates.add(stateId);
+
+        const loader = document.getElementById('main-loader');
+        if (loader) {
+            const subtitle = document.getElementById('subtitle');
+            if (subtitle) {
+                subtitle.textContent = message;
+                subtitle.setAttribute('aria-live', 'polite');
+            }
+
+            if (options.showProgress && options.total) {
+                this.showProgressBar(stateId, 0, options.total);
+            }
+        }
+
+        // Debug
+        if (window.GIKAMURA_DEBUG) {
+            console.log(`[LoadingState] Showing: ${stateId} - ${message}`);
+        }
+    }
+
+    hide(stateId) {
+        this.activeStates.delete(stateId);
+
+        if (this.activeStates.size === 0) {
+            const loader = document.getElementById('main-loader');
+            if (loader && !loader.classList.contains('hidden')) {
+                loader.classList.add('hidden');
+            }
+        }
+
+        // Debug
+        if (window.GIKAMURA_DEBUG) {
+            console.log(`[LoadingState] Hiding: ${stateId}`);
+        }
+    }
+
+    updateProgress(stateId, current, total, message) {
+        const progressBar = document.querySelector(`[data-progress-id="${stateId}"]`);
+        if (progressBar) {
+            const percentage = Math.round((current / total) * 100);
+            progressBar.style.width = `${percentage}%`;
+            progressBar.setAttribute('aria-valuenow', percentage);
+
+            const subtitle = document.getElementById('subtitle');
+            if (subtitle && message) {
+                subtitle.textContent = `${message} (${percentage}%)`;
+            }
+        }
+    }
+
+    showProgressBar(stateId, current, total) {
+        const loader = document.getElementById('main-loader');
+        if (!loader) return;
+
+        let progressContainer = loader.querySelector('.progress-container');
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.className = 'progress-container mt-4 w-64';
+
+            const progressBg = document.createElement('div');
+            progressBg.className = 'w-full bg-neutral-700 rounded-full h-2';
+
+            const progressBar = document.createElement('div');
+            progressBar.className = 'bg-blue-600 h-2 rounded-full transition-all duration-300';
+            progressBar.setAttribute('data-progress-id', stateId);
+            progressBar.setAttribute('role', 'progressbar');
+            progressBar.setAttribute('aria-valuemin', '0');
+            progressBar.setAttribute('aria-valuemax', '100');
+            progressBar.setAttribute('aria-valuenow', '0');
+
+            progressBg.appendChild(progressBar);
+            progressContainer.appendChild(progressBg);
+            loader.appendChild(progressContainer);
+        }
+
+        this.updateProgress(stateId, current, total);
+    }
+
+    showFeedback(message, type = 'info', duration = 3000) {
+        const feedback = document.createElement('div');
+        feedback.className = `feedback-toast fixed bottom-4 left-4 p-3 rounded-lg shadow-lg z-50 transform translate-y-full opacity-0 transition-all duration-300`;
+
+        const bgColor = type === 'success' ? 'bg-green-600' :
+                       type === 'error' ? 'bg-red-600' :
+                       type === 'warning' ? 'bg-yellow-600' : 'bg-blue-600';
+
+        feedback.classList.add(bgColor, 'text-white');
+        feedback.textContent = message;
+        feedback.setAttribute('role', 'status');
+        feedback.setAttribute('aria-live', 'polite');
+
+        document.body.appendChild(feedback);
+
+        // Animação de entrada
+        setTimeout(() => {
+            feedback.classList.remove('translate-y-full', 'opacity-0');
+        }, 100);
+
+        // Remover após duração
+        setTimeout(() => {
+            feedback.classList.add('translate-y-full', 'opacity-0');
+            setTimeout(() => feedback.remove(), 300);
+        }, duration);
+    }
+}
+
+export const loadingManager = new LoadingStateManager();
+
 let dom = null;
 export function getDOM() {
     if (!dom) {
