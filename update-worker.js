@@ -1,48 +1,21 @@
 // Constantes do Worker
 const INDEX_URL = 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json';
 
-// Fetch robusto com timeout e retry melhorado
-const fetchWithTimeout = async (resource, options = { timeout: 45000 }) => {
-    const { timeout, retries = 3, ...fetchOptions } = options;
+// Fetch simplificado mas robusto
+const fetchWithTimeout = async (resource, options = { timeout: 30000 }) => {
+    const { timeout, retries = 2, ...fetchOptions } = options;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
-        let timeoutId;
-        let controller;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
 
         try {
-            controller = new AbortController();
-
-            // Timeout Promise com limpeza adequada
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => {
-                    if (!controller.signal.aborted) {
-                        controller.abort();
-                    }
-                    reject(new Error(`Request timeout after ${timeout}ms (attempt ${attempt + 1})`));
-                }, timeout);
-            });
-
-            // Fetch Promise
-            const fetchPromise = fetch(resource, {
+            const response = await fetch(resource, {
                 ...fetchOptions,
-                signal: controller.signal,
-                cache: 'no-cache'
-            }).then(response => {
-                // Limpar timeout imediatamente quando response chega
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                    timeoutId = null;
-                }
-                return response;
+                signal: controller.signal
             });
 
-            // Race com cleanup adequado
-            const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-            // Verificar se response é válido
-            if (!response || typeof response.ok === 'undefined') {
-                throw new Error('Invalid response received');
-            }
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -51,20 +24,15 @@ const fetchWithTimeout = async (resource, options = { timeout: 45000 }) => {
             return response;
 
         } catch (error) {
-            // Cleanup de timeout e controller
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
-            }
+            clearTimeout(timeoutId);
 
             // Se é a última tentativa, throw error
             if (attempt === retries) {
-                throw new Error(`Failed after ${retries + 1} attempts: ${error.message}`);
+                throw error;
             }
 
-            // Delay progressivo antes do retry
-            const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            // Wait antes de retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         }
     }
 };
@@ -94,7 +62,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
 
         const jsonUrl = `https://raw.githubusercontent.com/${encodedPath}`;
 
-        const response = await fetchWithTimeout(jsonUrl, { timeout: 20000 });
+        const response = await fetchWithTimeout(jsonUrl, { timeout: 10000 });
         if (!response.ok) throw new Error(`Status: ${response.status}`);
 
         const data = await response.json();
@@ -188,7 +156,7 @@ async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
 
     try {
         updateStatus('Buscando índice do GitHub...');
-        const response = await fetchWithTimeout(INDEX_URL, { timeout: 25000 });
+        const response = await fetchWithTimeout(INDEX_URL, { timeout: 15000 });
         if (!response.ok) throw new Error(`Falha ao carregar o índice: ${response.status}`);
         const indexData = await response.json();
 
