@@ -1,3 +1,5 @@
+import './cache-coordinator.js';
+
 const DB_NAME = 'gikamuraDB';
 const DB_VERSION = 1;
 
@@ -8,6 +10,7 @@ const SETTINGS_STORE = 'settings';
 const METADATA_STORE = 'metadata';
 
 let db;
+let cacheCoordinator;
 
 const initDB = () => {
     return new Promise((resolve, reject) => {

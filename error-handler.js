@@ -1,189 +1,16 @@
 /**
- * Sistema robusto de tratamento de erros e retry com fallback
+ * Sistema simplificado de tratamento de erros focado no que é realmente usado
  */
-class RetryHandler {
-    constructor(maxRetries = 3, baseDelay = 1000) {
-        this.maxRetries = maxRetries;
-        this.baseDelay = baseDelay;
-    }
 
-    async executeWithRetry(fn, ...args) {
-        let lastError;
-
-        for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-            try {
-                return await fn(...args);
-            } catch (error) {
-                lastError = error;
-
-                if (attempt === this.maxRetries) break;
-
-                // Exponential backoff com jitter
-                const delay = this.baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-                console.warn(`Tentativa ${attempt + 1} falhou, retry em ${delay}ms:`, error.message);
-
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-
-        throw lastError;
-    }
-}
-
-class ProxyManager {
-    constructor(proxies) {
-        this.proxies = [...proxies];
-        this.currentIndex = 0;
-        this.failureCount = new Map();
-        this.resetInterval = 5 * 60 * 1000; // 5 minutos
-
-        // Reset counters periodicamente
-        setInterval(() => this.resetFailureCounts(), this.resetInterval);
-    }
-
-    getNextProxy() {
-        // Encontrar proxy com menos falhas
-        let bestProxy = this.proxies[0];
-        let minFailures = this.failureCount.get(bestProxy) || 0;
-
-        for (const proxy of this.proxies) {
-            const failures = this.failureCount.get(proxy) || 0;
-            if (failures < minFailures) {
-                bestProxy = proxy;
-                minFailures = failures;
-            }
-        }
-
-        return bestProxy;
-    }
-
-    recordFailure(proxy) {
-        const current = this.failureCount.get(proxy) || 0;
-        this.failureCount.set(proxy, current + 1);
-    }
-
-    recordSuccess(proxy) {
-        // Reduzir contador de falhas em caso de sucesso
-        const current = this.failureCount.get(proxy) || 0;
-        if (current > 0) {
-            this.failureCount.set(proxy, Math.max(0, current - 1));
-        }
-    }
-
-    resetFailureCounts() {
-        this.failureCount.clear();
-        console.log('Contadores de falha de proxy resetados');
-    }
-}
-
-export class RobustFetcher {
-    constructor(proxies = []) {
-        this.retryHandler = new RetryHandler(3, 1000);
-        this.proxyManager = new ProxyManager(proxies);
-        this.requestCache = new Map();
-        this.cacheTimeout = 30000; // 30 segundos
-    }
-
-    async fetchWithFallback(url, options = {}) {
-        const cacheKey = `${url}_${JSON.stringify(options)}`;
-
-        // Verificar cache de request recente
-        if (this.requestCache.has(cacheKey)) {
-            const cached = this.requestCache.get(cacheKey);
-            if (Date.now() - cached.timestamp < this.cacheTimeout) {
-                return cached.response.clone();
-            }
-        }
-
-        const errors = [];
-        const maxProxyTries = this.proxyManager.proxies.length;
-
-        for (let proxyAttempt = 0; proxyAttempt < maxProxyTries; proxyAttempt++) {
-            const proxy = this.proxyManager.getNextProxy();
-
-            try {
-                const proxyUrl = proxy + encodeURIComponent(url);
-                console.log(`Tentando com proxy: ${proxy}`);
-
-                const response = await this.retryHandler.executeWithRetry(
-                    this.fetchWithTimeout.bind(this),
-                    proxyUrl,
-                    { ...options, timeout: options.timeout || 20000 }
-                );
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                // Sucesso - atualizar cache e registrar sucesso do proxy
-                this.proxyManager.recordSuccess(proxy);
-                this.requestCache.set(cacheKey, {
-                    response: response.clone(),
-                    timestamp: Date.now()
-                });
-
-                return response;
-
-            } catch (error) {
-                console.error(`Falha com proxy ${proxy}:`, error.message);
-                this.proxyManager.recordFailure(proxy);
-                errors.push({ proxy, error: error.message });
-            }
-        }
-
-        // Se chegou aqui, todos os proxies falharam
-        const aggregatedError = new Error(
-            `Todos os proxies falharam para ${url}. Erros: ${errors.map(e => `${e.proxy}: ${e.error}`).join('; ')}`
-        );
-        aggregatedError.details = errors;
-        throw aggregatedError;
-    }
-
-    async fetchWithTimeout(resource, options = {}) {
-        const { timeout = 20000, ...fetchOptions } = options;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-        try {
-            const response = await fetch(resource, {
-                ...fetchOptions,
-                signal: controller.signal
-            });
-            return response;
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                throw new Error(`Request timeout após ${timeout}ms`);
-            }
-            throw error;
-        } finally {
-            clearTimeout(timeoutId);
-        }
-    }
-
-    async fetchJson(url, options = {}) {
-        const response = await this.fetchWithFallback(url, options);
-        return await response.json();
-    }
-
-    clearCache() {
-        this.requestCache.clear();
-    }
-
-    getStats() {
-        return {
-            cacheSize: this.requestCache.size,
-            proxyFailures: Object.fromEntries(this.proxyManager.failureCount),
-            proxies: this.proxyManager.proxies
-        };
-    }
-}
-
-// Sistema de notificação de erros user-friendly
+// Sistema de notificação de erros user-friendly com recovery
 export class ErrorNotificationManager {
     constructor() {
         this.notificationQueue = [];
         this.isShowing = false;
         this.container = null;
+        this.errorHistory = [];
+        this.recoveryAttempts = new Map();
+        this.maxRecoveryAttempts = 3;
 
         // Só criar container se estivermos no browser
         if (typeof document !== 'undefined') {
@@ -311,6 +138,225 @@ export class ErrorNotificationManager {
             'error',
             8000
         );
+    }
+
+    /**
+     * Sistema de Recovery de Errors
+     */
+    logError(error, context = {}) {
+        const errorRecord = {
+            message: error.message || error,
+            timestamp: Date.now(),
+            context,
+            stack: error.stack,
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
+        };
+
+        this.errorHistory.push(errorRecord);
+
+        // Manter apenas os últimos 50 erros
+        if (this.errorHistory.length > 50) {
+            this.errorHistory.shift();
+        }
+
+        // Analytics local para padrões de erro
+        if (typeof window !== 'undefined' && window.analytics) {
+            window.analytics.trackError(error.message, context);
+        }
+    }
+
+    async recoverFromError(error, context = {}) {
+        const errorKey = `${error.message}_${context.operation || 'unknown'}`;
+        const attempts = this.recoveryAttempts.get(errorKey) || 0;
+
+        if (attempts >= this.maxRecoveryAttempts) {
+            console.warn(`Máximo de tentativas de recovery atingido para: ${errorKey}`);
+            return false;
+        }
+
+        this.recoveryAttempts.set(errorKey, attempts + 1);
+        this.logError(error, { ...context, recoveryAttempt: attempts + 1 });
+
+        try {
+            switch (context.type) {
+                case 'network':
+                    return await this.recoverNetworkError(error, context);
+                case 'cache':
+                    return await this.recoverCacheError(error, context);
+                case 'data':
+                    return await this.recoverDataError(error, context);
+                default:
+                    return await this.genericRecovery(error, context);
+            }
+        } catch (recoveryError) {
+            console.error('Falha na tentativa de recovery:', recoveryError);
+            return false;
+        }
+    }
+
+    async recoverNetworkError(error, context) {
+        console.log('Tentando recovery de erro de rede...');
+
+        // Verificar conectividade
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            this.showError(
+                'Sem Conexão',
+                'Verifique sua conexão com a internet e tente novamente',
+                'warning',
+                5000
+            );
+            return false;
+        }
+
+        // Aguardar antes de retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Tentar usar cache como fallback
+        if (context.url && typeof window !== 'undefined' && window.cacheCoordinator) {
+            try {
+                const cachedData = await window.cacheCoordinator.get(context.url);
+                if (cachedData) {
+                    this.showError(
+                        'Usando Dados Locais',
+                        'Conectividade instável. Mostrando dados salvos.',
+                        'warning',
+                        3000
+                    );
+                    return cachedData;
+                }
+            } catch (cacheError) {
+                console.warn('Falha ao acessar cache durante recovery:', cacheError);
+            }
+        }
+
+        return false;
+    }
+
+    async recoverCacheError(error, context) {
+        console.log('Tentando recovery de erro de cache...');
+
+        try {
+            // Limpar cache corrompido
+            if (typeof localStorage !== 'undefined') {
+                const keys = Object.keys(localStorage);
+                for (const key of keys) {
+                    if (key.startsWith('gikamura_')) {
+                        try {
+                            JSON.parse(localStorage.getItem(key));
+                        } catch (e) {
+                            // Remove entradas corrompidas
+                            localStorage.removeItem(key);
+                            console.log(`Cache corrompido removido: ${key}`);
+                        }
+                    }
+                }
+            }
+
+            // Tentar recriar cache
+            if (typeof window !== 'undefined' && window.cacheCoordinator) {
+                await window.cacheCoordinator.initialize();
+            }
+
+            this.showError(
+                'Cache Limpo',
+                'Cache foi reinicializado. Recarregando dados...',
+                'info',
+                3000
+            );
+
+            return true;
+        } catch (recoveryError) {
+            console.error('Falha na limpeza do cache:', recoveryError);
+            return false;
+        }
+    }
+
+    async recoverDataError(error, context) {
+        console.log('Tentando recovery de erro de dados...');
+
+        // Se há dados corrompidos, tentar usar backup
+        if (context.backupData) {
+            this.showError(
+                'Usando Backup',
+                'Dados principais indisponíveis. Usando backup.',
+                'warning',
+                4000
+            );
+            return context.backupData;
+        }
+
+        // Forçar recarregamento de dados
+        if (context.reloadFunction && typeof context.reloadFunction === 'function') {
+            try {
+                await context.reloadFunction();
+                return true;
+            } catch (reloadError) {
+                console.error('Falha no reload durante recovery:', reloadError);
+            }
+        }
+
+        return false;
+    }
+
+    async genericRecovery(error, context) {
+        console.log('Tentando recovery genérico...');
+
+        // Aguardar um pouco e tentar novamente
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Se há uma função de retry no contexto
+        if (context.retryFunction && typeof context.retryFunction === 'function') {
+            try {
+                return await context.retryFunction();
+            } catch (retryError) {
+                console.error('Falha no retry durante recovery:', retryError);
+            }
+        }
+
+        // Reload da página como último recurso (apenas se permitido)
+        if (context.allowPageReload && typeof window !== 'undefined') {
+            this.showError(
+                'Recarregando Página',
+                'Tentando resolver problema recarregando a aplicação...',
+                'info',
+                2000
+            );
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    clearErrorHistory() {
+        this.errorHistory = [];
+        this.recoveryAttempts.clear();
+    }
+
+    getErrorStats() {
+        const now = Date.now();
+        const oneHour = 60 * 60 * 1000;
+
+        const recentErrors = this.errorHistory.filter(
+            error => now - error.timestamp < oneHour
+        );
+
+        const errorCounts = {};
+        recentErrors.forEach(error => {
+            const key = error.message.substring(0, 50);
+            errorCounts[key] = (errorCounts[key] || 0) + 1;
+        });
+
+        return {
+            totalErrors: this.errorHistory.length,
+            recentErrors: recentErrors.length,
+            errorFrequency: errorCounts,
+            recoveryAttempts: Object.fromEntries(this.recoveryAttempts)
+        };
     }
 }
 

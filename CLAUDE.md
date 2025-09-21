@@ -56,8 +56,17 @@ node scripts/setup-env.js setup
 node scripts/setup-env.js validate
 ```
 
-### Estrutura de Testes
+### Testes e Validação
 ```bash
+# Executar testes de qualidade localmente
+node test-workflow.js
+
+# Validar sintaxe JavaScript de todos os arquivos
+find . -name "*.js" -not -path "./node_modules/*" -not -path "./.git/*" | xargs -I {} node -c "require('fs').readFileSync('{}', 'utf8')"
+
+# Validar manifest.json
+node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"
+
 # CI/CD automatizado via GitHub Actions
 # - Workflow de CI: testa sintaxe JS, valida PWA, segurança
 # - Workflow de Deploy: build e deploy automático para GitHub Pages
@@ -157,12 +166,23 @@ O store gerencia:
 
 ## Debugging
 
+### Sistema de Debug Global
+```javascript
+// Ativar/desativar debug global
+window.toggleGikamuraDebug()  // Alterna debug on/off
+window.GIKAMURA_DEBUG         // Verificar estado atual
+
+// Debug persistente (salvo no localStorage)
+localStorage.setItem('gikamura_debug', 'true')
+```
+
 ### Logs e Monitoramento
 Para debug, monitore:
 - Console do Service Worker (Application tab)
-- Network requests para GitHub API
+- Network requests para GitHub API (raw.githubusercontent.com)
 - LocalStorage e IndexedDB
 - Worker messages no console
+- Debug logs quando `window.GIKAMURA_DEBUG` estiver ativo
 
 ### Problemas Conhecidos
 1. **Web Workers**: Não podem usar ES6 modules (`import`/`export`) - usar `importScripts()`
@@ -256,7 +276,39 @@ Se os cards não aparecem:
 # Ver status de ambos ambientes
 ./scripts/setup-env.sh status
 
-# Monitorar workflows
+# Monitorar workflows via GitHub CLI
 gh run list --repo gikamura/reader --limit 3  # Produção
 gh run list --repo gikamura/rc --limit 3      # RC
+
+# Ver detalhes de um workflow específico
+gh run view --repo gikamura/reader <run-id>
+
+# Verificar status de deploy em tempo real
+gh run watch --repo gikamura/reader
+```
+
+## Comandos de Manutenção
+
+### Limpeza e Reset
+```bash
+# Limpar cache do navegador manualmente
+# No DevTools: Application > Storage > Clear Storage
+
+# Reset total da aplicação (localStorage)
+localStorage.clear()
+
+# Forçar reload sem cache
+Ctrl+Shift+R (ou Cmd+Shift+R no Mac)
+```
+
+### Monitoramento de Performance
+```bash
+# Verificar tamanho dos arquivos principais
+du -h *.js *.css *.html
+
+# Monitorar uso de localStorage (no console do navegador)
+console.log(JSON.stringify(localStorage).length + ' bytes')
+
+# Verificar Service Worker status
+navigator.serviceWorker.getRegistrations().then(regs => console.log(regs))
 ```

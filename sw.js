@@ -18,7 +18,9 @@ const STATIC_ASSETS = [
     './error-handler.js',
     './smart-debounce.js',
     './touch-gestures.js',
-    './smart-cache.js',
+    './cache-coordinator.js',
+    './shared-utils.js',
+    './input-validator.js',
     './local-analytics.js',
     './manifest.json'
 ];
