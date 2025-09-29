@@ -219,10 +219,11 @@ function createUpdateHistoryItemHTML(update) {
     const updateTime = new Date(update.timestamp).toLocaleString('pt-BR');
     const chapterText = newChapters.map(c => c.title).join(', ');
     const unreadClass = read === false ? 'bg-blue-900/40 border-blue-700/60' : 'bg-[#050505]/50 border-neutral-800/60';
+    const escapedTitle = manga.title ? manga.title.replace(/"/g, '&quot;') : '';
 
     return `
     <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
-        <img src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/48x64/1f2937/ef4444?text=!';">
+        <img src="${manga.imageUrl}" alt="Capa de ${escapedTitle}" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/48x64/1f2937/ef4444?text=!';">
         <div class="overflow-hidden">
             <p class="font-semibold text-white truncate">${manga.title}</p>
             <p class="text-sm text-gray-400 truncate">Novos capítulos: ${chapterText}</p>
@@ -378,23 +379,6 @@ const createScanCardHTML = (scan) => {
     `;
 };
 
-// NOVO: Função para criar o card de uma scan
-const createScanCardHTML = (scan) => {
-    const { name, icon_url, description, total_works } = scan.scan_info;
-    return `
-    <div class="scan-card cursor-pointer bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex flex-col p-4 border border-neutral-800/60" data-url="${scan.url}">
-        <div class="flex items-center mb-4">
-            <img src="${icon_url}" alt="Ícone de ${name}" class="w-16 h-16 object-cover rounded-full mr-4 border-2 border-neutral-700">
-            <div>
-                <h3 class="text-xl font-bold text-white">${name}</h3>
-                <p class="text-sm text-gray-400">${total_works || 'N/A'} obras</p>
-            </div>
-        </div>
-        <p class="text-gray-300 text-sm flex-grow">${description}</p>
-    </div>
-    `;
-};
-
 // NOVO: Função para renderizar a lista de scans
 function renderScansList(state) {
     const dom = getDOM();
@@ -420,10 +404,15 @@ async function renderScanWorks(state) {
             <h2 class="text-3xl font-bold text-white">${name}</h2>
             <p class="text-gray-400 mt-1">${description}</p>
         </div>
-        <div id="scan-works-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="scan-works-grid" class="grid grid-cols-1 md:col-span-2 lg:col-span-3 gap-6">
             <div class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>
         </div>
     `;
+
+    // Adiciona o event listener para o botão de voltar
+    dom.scansContent.querySelector('#back-to-scans-btn').addEventListener('click', () => {
+        store.dispatch({ type: 'SET_SELECTED_SCAN', payload: null });
+    });
 
     try {
         const fetchPromises = works.map(async ([key, work]) => {
