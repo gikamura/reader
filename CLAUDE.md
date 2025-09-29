@@ -17,7 +17,7 @@ Esta é uma Progressive Web App (PWA) para leitura de mangás/manhwas/manhuas qu
 
 ### Módulos de Performance e UX
 
-- **lazy-loader.js**: Sistema de carregamento tardio para otimizar performance
+
 - **smart-debounce.js**: Debounce inteligente e autocomplete
 - **smart-cache.js**: Cache inteligente com estratégias avançadas
 - **touch-gestures.js**: Gerenciamento de gestos para navegação touch

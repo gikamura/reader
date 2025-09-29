@@ -14,7 +14,7 @@ const STATIC_ASSETS = [
     './api.js',
     './cache.js',
     './constants.js',
-    './lazy-loader.js',
+
     './error-handler.js',
     './smart-debounce.js',
     './touch-gestures.js',
