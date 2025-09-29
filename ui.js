@@ -378,6 +378,34 @@ const createScanCardHTML = (scan) => {
     `;
 };
 
+// NOVO: Função para criar o card de uma scan
+const createScanCardHTML = (scan) => {
+    const { name, icon_url, description, total_works } = scan.scan_info;
+    return `
+    <div class="scan-card cursor-pointer bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex flex-col p-4 border border-neutral-800/60" data-url="${scan.url}">
+        <div class="flex items-center mb-4">
+            <img src="${icon_url}" alt="Ícone de ${name}" class="w-16 h-16 object-cover rounded-full mr-4 border-2 border-neutral-700">
+            <div>
+                <h3 class="text-xl font-bold text-white">${name}</h3>
+                <p class="text-sm text-gray-400">${total_works || 'N/A'} obras</p>
+            </div>
+        </div>
+        <p class="text-gray-300 text-sm flex-grow">${description}</p>
+    </div>
+    `;
+};
+
+// NOVO: Função para renderizar a lista de scans
+function renderScansList(state) {
+    const dom = getDOM();
+    dom.scansContent.innerHTML = `
+        <h2 class="text-2xl font-bold text-white mb-4">Explorar Scans</h2>
+        <div id="scans-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            ${state.scansList.map(scan => createScanCardHTML(scan)).join('')}
+        </div>
+    `;
+}
+
 // NOVO: Lógica aprimorada para renderizar as obras de uma scan
 async function renderScanWorks(state) {
     const dom = getDOM();
