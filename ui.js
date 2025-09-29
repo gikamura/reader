@@ -1,6 +1,6 @@
 import { store } from './store.js';
 import { ITEMS_PER_PAGE } from './constants.js';
-import { lazyLoader } from './lazy-loader.js';
+
 
 // Sistema de loading states e feedback visual
 class LoadingStateManager {
@@ -221,7 +221,7 @@ function createUpdateHistoryItemHTML(update) {
 
     return `
     <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
-        <img data-src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0 lazy-image" onerror="this.onerror=null;this.src='https://placehold.co/48x64/1f2937/ef4444?text=!';">
+        <img src="${manga.imageUrl}" alt="Capa" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/48x64/1f2937/ef4444?text=!';">
         <div class="overflow-hidden">
             <p class="font-semibold text-white truncate">${manga.title}</p>
             <p class="text-sm text-gray-400 truncate">Novos capítulos: ${chapterText}</p>
@@ -268,7 +268,7 @@ const createCardHTML = (data, isFavorite) => {
     <div class="relative bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
             <div class="w-1/3 flex-shrink-0 bg-[#050505]">
-                <img data-src="${data.imageUrl}" alt="Capa de ${escapedTitle}" class="w-full h-full object-cover lazy-image" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/ef4444?text=Indisponivel';">
+                <img src="${data.imageUrl}" alt="Capa de ${escapedTitle}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/ef4444?text=Indisponivel';">
             </div>
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <div class="h-10"></div>
@@ -307,11 +307,7 @@ const renderCards = (container, cardDataList, favoritesSet) => {
     }
     container.innerHTML = cardDataList.map(data => createCardHTML(data, favoritesSet.has(data.url))).join('');
 
-    // Aplicar lazy loading às novas imagens
-    setTimeout(() => {
-        const images = container.querySelectorAll('img.lazy-image');
-        images.forEach(img => lazyLoader.observe(img));
-    }, 0);
+
 };
 
 const renderPagination = (controlsContainer, totalItems, currentPage) => {
