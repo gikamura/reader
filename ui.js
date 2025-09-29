@@ -395,9 +395,9 @@ async function renderScanWorks(state) {
     const dom = getDOM();
     const { name, description } = state.selectedScan.scan_info;
     const works = Object.entries(state.selectedScan.works);
-    const { fetchWithTimeout } = window.SharedUtils;
+    const { fetchWithTimeout, decodeCubariUrl, getWorkType } = window.SharedUtils;
 
-    // Exibe o cabeçalho e um loader
+    // Exibe o cabeçalho e um loader inicial
     dom.scansContent.innerHTML = `
         <div class="mb-6">
             <button id="back-to-scans-btn" class="text-blue-400 hover:text-blue-300 mb-4">&larr; Voltar para a lista de Scans</button>
@@ -405,7 +405,7 @@ async function renderScanWorks(state) {
             <p class="text-gray-400 mt-1">${description}</p>
         </div>
         <div id="scan-works-grid" class="grid grid-cols-1 md:col-span-2 lg:col-span-3 gap-6">
-            <div class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>
+            <div id="scan-works-loader" class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>
         </div>
     `;
 
@@ -414,42 +414,70 @@ async function renderScanWorks(state) {
         store.dispatch({ type: 'SET_SELECTED_SCAN', payload: null });
     });
 
+    const grid = document.getElementById('scan-works-grid');
+    let worksRendered = 0;
+
+    const BATCH_SIZE = 5;
+    const BATCH_DELAY = 500; // ms
+
     try {
-        const fetchPromises = works.map(async ([key, work]) => {
-            const cubariUrl = work.chapters[0]?.url;
-            if (!cubariUrl) return null;
+        for (let i = 0; i < works.length; i += BATCH_SIZE) {
+            const batch = works.slice(i, i + BATCH_SIZE);
 
-            const decodedUrl = window.SharedUtils.decodeCubariUrl(cubariUrl);
-            if (!decodedUrl) return null;
+            const fetchPromises = batch.map(async ([key, work]) => {
+                const cubariUrl = work.chapters[0]?.url;
+                if (!cubariUrl) return null;
 
-            const response = await fetchWithTimeout(decodedUrl, { timeout: 15000 });
-            if (!response.ok) return null;
+                const decodedUrl = decodeCubariUrl(cubariUrl);
+                if (!decodedUrl) return null;
 
-            const detailedWork = await response.json();
-            
-            // Monta o objeto final com os dados mais completos
-            return {
-                ...detailedWork,
-                url: cubariUrl, // Mantém a URL do Cubari para o link
-                imageUrl: detailedWork.cover || work.chapters[0]?.cover_url, // Usa a capa do JSON final, com fallback
-                type: window.SharedUtils.getWorkType(key, detailedWork), // Usa a função de tipo aprimorada
-                chapterCount: Object.keys(detailedWork.chapters).length,
-            };
-        });
+                try {
+                    const response = await fetchWithTimeout(decodedUrl, { timeout: 15000 });
+                    if (!response.ok) return null;
 
-        const detailedWorks = (await Promise.all(fetchPromises)).filter(Boolean);
+                    const detailedWork = await response.json();
+                    
+                    return {
+                        ...detailedWork,
+                        url: cubariUrl,
+                        imageUrl: detailedWork.cover || work.chapters[0]?.cover_url,
+                        type: getWorkType(key, detailedWork),
+                        chapterCount: Object.keys(detailedWork.chapters || {}).length,
+                    };
+                } catch (e) {
+                    console.error(`Falha ao buscar detalhes para ${key}:`, e);
+                    return null; // Retorna nulo se um fetch individual falhar
+                }
+            });
 
-        const grid = document.getElementById('scan-works-grid');
-        if (grid) {
-            if (detailedWorks.length > 0) {
-                grid.innerHTML = detailedWorks.map(work => createCardHTML(work, state.favorites.has(work.url))).join('');
-            } else {
-                grid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-8">Nenhuma obra encontrada para esta scan.</p>`;
+            const detailedWorksBatch = (await Promise.all(fetchPromises)).filter(Boolean);
+
+            if (grid) {
+                // Remove o loader inicial no primeiro lote bem-sucedido
+                const loader = document.getElementById('scan-works-loader');
+                if (loader) loader.remove();
+
+                if (detailedWorksBatch.length > 0) {
+                    grid.innerHTML += detailedWorksBatch.map(work => createCardHTML(work, state.favorites.has(work.url))).join('');
+                    worksRendered += detailedWorksBatch.length;
+                }
+            }
+
+            if (i + BATCH_SIZE < works.length) {
+                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
             }
         }
+
+        if (worksRendered === 0) {
+            const loader = document.getElementById('scan-works-loader');
+            if (loader) loader.remove();
+            grid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-8">Nenhuma obra encontrada para esta scan.</p>`;
+        }
+
     } catch (error) {
         console.error("Erro ao buscar detalhes das obras da scan:", error);
-        const grid = document.getElementById('scan-works-grid');
+        const loader = document.getElementById('scan-works-loader');
+        if (loader) loader.remove();
         if (grid) {
             grid.innerHTML = `<p class="col-span-full text-center text-red-500 py-8">Falha ao carregar obras. Tente novamente mais tarde.</p>`;
         }
