@@ -1,7 +1,7 @@
 import { initializeStore, store } from './store.js';
 import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup, loadingManager } from './ui.js';
 import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion } from './cache.js';
-import './lazy-loader.js';
+
 import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { errorNotificationManager } from './error-handler.js';
 import { GestureNavigationManager } from './touch-gestures.js';
