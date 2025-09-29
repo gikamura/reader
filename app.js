@@ -185,8 +185,7 @@ function setupEventListeners() {
                 mainContent.focus();
             }
 
-            // Feedback para screen readers
-            loadingManager.showFeedback(`Navegou para ${tabButton.textContent.trim()}`, 'info', 2000);
+
 
             // Analytics: track tab navigation
             analytics?.trackPageView(tabName);
@@ -467,7 +466,7 @@ async function initializeApp() {
                     if (updated) {
                         await setLastCheckTimestamp(Date.now().toString());
                         showNotification("O catálogo foi atualizado com sucesso!");
-                        loadingManager.showFeedback("Catálogo atualizado com sucesso!", 'success', 4000);
+
                     } else {
                         loadingManager.showFeedback("Catálogo carregado do cache", 'info', 3000);
                     }
