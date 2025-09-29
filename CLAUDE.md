@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Este arquivo fornece orientações para o Claude Code (claude.ai/code) ao trabalhar com código neste repositório.
 
 ## Arquitetura da Aplicação
 
@@ -59,7 +59,7 @@ node scripts/setup-env.js validate
 ### Testes e Validação
 ```bash
 # Executar testes de qualidade localmente
-node test-workflow.js
+node test/test-workflow.js
 
 # Validar sintaxe JavaScript de todos os arquivos
 find . -name "*.js" -not -path "./node_modules/*" -not -path "./.git/*" | xargs -I {} node -c "require('fs').readFileSync('{}', 'utf8')"

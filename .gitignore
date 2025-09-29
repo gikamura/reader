@@ -102,3 +102,8 @@ dist/
 
 # PWA específico
 sw.js.map
+
+#folder
+test
+scripts
+log
