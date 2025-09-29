@@ -339,6 +339,8 @@ if (typeof module !== 'undefined' && module.exports) {
         SHARED_CONFIG,
         fetchWithTimeout,
         b64DecodeUnicode,
+        decodeCubariUrl, // Adicionado
+        getWorkType, // Adicionado
         validateUrl,
         sanitizeInput,
         processMangaUrl,
