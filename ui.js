@@ -378,69 +378,65 @@ const createScanCardHTML = (scan) => {
     `;
 };
 
-// NOVO: Função para criar o card de uma obra (reutilizando a lógica existente)
-const createWorkCardHTML = (workKey, work, isFavorite) => {
-    const data = work.chapters[0];
-
-    // LÓGICA DE TIPO APRIMORADA
-    let workType = data.type; // Tenta pegar o tipo explícito primeiro
-    if (!workType) { // Se não existir, usa a chave como fallback
-        const keyPrefix = workKey.substring(2, 4); // Extrai 'kr', 'jp', 'ch', 'ons'
-        switch (keyPrefix) {
-            case 'kr': workType = 'manhwa'; break;
-            case 'jp': workType = 'manga'; break;
-            case 'ch': workType = 'manhua'; break;
-            case 'ons': workType = 'oneshot'; break;
-            default: workType = 'N/A';
-        }
-    }
-
-    const cardData = {
-        url: data.url,
-        title: work.title,
-        description: work.description || 'Sem descrição.',
-        imageUrl: data.cover_url,
-        author: work.author || 'N/A',
-        artist: work.artist || 'N/A',
-        type: workType, // Usa o tipo que acabamos de determinar
-        status: work.status || 'N/A',
-        chapterCount: work.chapters.length,
-    };
-    // Reutiliza a função já existente para criar cards de mangá
-    return createCardHTML(cardData, isFavorite);
-};
-
-// NOVO: Função para renderizar a lista de scans
-function renderScansList(state) {
-    const dom = getDOM();
-    dom.scansContent.innerHTML = `
-        <h2 class="text-2xl font-bold text-white mb-4">Explorar Scans</h2>
-        <div id="scans-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            ${state.scansList.map(scan => createScanCardHTML(scan)).join('')}
-        </div>
-    `;
-}
-
-// NOVO: Função para renderizar as obras de uma scan selecionada
-function renderScanWorks(state) {
+// NOVO: Lógica aprimorada para renderizar as obras de uma scan
+async function renderScanWorks(state) {
     const dom = getDOM();
     const { name, description } = state.selectedScan.scan_info;
-    // MODIFICADO: Usar Object.entries para ter acesso à chave e ao valor
     const works = Object.entries(state.selectedScan.works);
+    const { fetchWithTimeout } = window.SharedUtils;
 
+    // Exibe o cabeçalho e um loader
     dom.scansContent.innerHTML = `
         <div class="mb-6">
             <button id="back-to-scans-btn" class="text-blue-400 hover:text-blue-300 mb-4">&larr; Voltar para a lista de Scans</button>
             <h2 class="text-3xl font-bold text-white">${name}</h2>
             <p class="text-gray-400 mt-1">${description}</p>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            ${
-                // MODIFICADO: Passar a chave (key) e o valor (work)
-                works.map(([key, work]) => createWorkCardHTML(key, work, state.favorites.has(work.chapters[0].url))).join('')
-            }
+        <div id="scan-works-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>
         </div>
     `;
+
+    try {
+        const fetchPromises = works.map(async ([key, work]) => {
+            const cubariUrl = work.chapters[0]?.url;
+            if (!cubariUrl) return null;
+
+            const decodedUrl = window.SharedUtils.decodeCubariUrl(cubariUrl);
+            if (!decodedUrl) return null;
+
+            const response = await fetchWithTimeout(decodedUrl, { timeout: 15000 });
+            if (!response.ok) return null;
+
+            const detailedWork = await response.json();
+            
+            // Monta o objeto final com os dados mais completos
+            return {
+                ...detailedWork,
+                url: cubariUrl, // Mantém a URL do Cubari para o link
+                imageUrl: detailedWork.cover || work.chapters[0]?.cover_url, // Usa a capa do JSON final, com fallback
+                type: window.SharedUtils.getWorkType(key, detailedWork), // Usa a função de tipo aprimorada
+                chapterCount: Object.keys(detailedWork.chapters).length,
+            };
+        });
+
+        const detailedWorks = (await Promise.all(fetchPromises)).filter(Boolean);
+
+        const grid = document.getElementById('scan-works-grid');
+        if (grid) {
+            if (detailedWorks.length > 0) {
+                grid.innerHTML = detailedWorks.map(work => createCardHTML(work, state.favorites.has(work.url))).join('');
+            } else {
+                grid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-8">Nenhuma obra encontrada para esta scan.</p>`;
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao buscar detalhes das obras da scan:", error);
+        const grid = document.getElementById('scan-works-grid');
+        if (grid) {
+            grid.innerHTML = `<p class="col-span-full text-center text-red-500 py-8">Falha ao carregar obras. Tente novamente mais tarde.</p>`;
+        }
+    }
 }
 
 export function renderApp() {

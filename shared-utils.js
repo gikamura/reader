@@ -59,16 +59,44 @@ const fetchWithTimeout = async (resource, options = {}) => {
     }
 };
 
-// Decodificação Base64 segura para Unicode
 const b64DecodeUnicode = (str) => {
     try {
-        return decodeURIComponent(atob(str).split('').map((c) => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-    } catch (error) {
-        throw new Error(`Falha na decodificação Base64: ${error.message}`);
+        return decodeURIComponent(atob(str).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+    } catch (e) {
+        console.error('b64DecodeUnicode error:', e);
+        return '';
     }
 };
+
+// NOVO: Decodifica a URL de um gist do Cubari para obter a URL raw do JSON
+const decodeCubariUrl = (cubariUrl) => {
+    try {
+        const parts = cubariUrl.split('/gist/');
+        if (parts.length < 2) return null;
+        const gistPart = parts[1].split('/')[0];
+        return b64DecodeUnicode(gistPart);
+    } catch (error) {
+        console.error('Falha ao decodificar URL do Cubari:', error);
+        return null;
+    }
+};
+
+// NOVO: Determina o tipo da obra, com fallback para a chave
+const getWorkType = (workKey, workData) => {
+    let workType = workData.type;
+    if (!workType) {
+        const keyPrefix = workKey.substring(2, 4);
+        switch (keyPrefix) {
+            case 'kr': workType = 'manhwa'; break;
+            case 'jp': workType = 'manga'; break;
+            case 'ch': workType = 'manhua'; break;
+            case 'ons': workType = 'oneshot'; break;
+            default: workType = 'N/A';
+        }
+    }
+    return workType;
+};
+
 
 // Validação de URL robusta
 const validateUrl = (url) => {
