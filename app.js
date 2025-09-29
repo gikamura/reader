@@ -6,8 +6,7 @@ import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { errorNotificationManager } from './error-handler.js';
 import { GestureNavigationManager } from './touch-gestures.js';
 import { analytics } from './local-analytics.js';
-import { SCANS_INDEX_URL } from './constants.js'; // Importar a nova constante
-import { fetchWithTimeout } from './shared-utils.js'; // Supondo que fetchWithTimeout está em shared-utils.js ou api.js
+import { SCANS_INDEX_URL } from './constants.js';
 
 // Sistema global de debug
 window.GIKAMURA_DEBUG = localStorage.getItem('gikamura_debug') === 'true';
@@ -160,6 +159,7 @@ async function handleNotificationsPermission() {
 
 function setupEventListeners() {
     const dom = getDOM();
+    const { fetchWithTimeout } = window.SharedUtils; // ADICIONAR ESTA LINHA AQUI TAMBÉM
 
     dom.tabs.addEventListener('click', (e) => {
         const tabButton = e.target.closest('.tab');
@@ -422,6 +422,9 @@ async function findNewChapterUpdates(oldManga, newManga) {
 
 // NOVO: Função para buscar o índice de scans
 async function fetchScansIndex() {
+    // ADICIONAR ESTA LINHA: Para obter a função da maneira correta
+    const { fetchWithTimeout } = window.SharedUtils;
+
     try {
         const response = await fetchWithTimeout(SCANS_INDEX_URL);
         const index = await response.json();
