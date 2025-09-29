@@ -360,6 +360,88 @@ const renderPagination = (controlsContainer, totalItems, currentPage) => {
     controlsContainer.innerHTML = buttonsHTML;
 };
 
+// NOVO: Função para criar o card de uma scan
+const createScanCardHTML = (scan) => {
+    const { name, icon_url, description, total_works } = scan.scan_info;
+    return `
+    <div class="scan-card cursor-pointer bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex flex-col p-4 border border-neutral-800/60" data-url="${scan.url}">
+        <div class="flex items-center mb-4">
+            <img src="${icon_url}" alt="Ícone de ${name}" class="w-16 h-16 object-cover rounded-full mr-4 border-2 border-neutral-700">
+            <div>
+                <h3 class="text-xl font-bold text-white">${name}</h3>
+                <p class="text-sm text-gray-400">${total_works || 'N/A'} obras</p>
+            </div>
+        </div>
+        <p class="text-gray-300 text-sm flex-grow">${description}</p>
+    </div>
+    `;
+};
+
+// NOVO: Função para criar o card de uma obra (reutilizando a lógica existente)
+const createWorkCardHTML = (workKey, work, isFavorite) => {
+    const data = work.chapters[0];
+
+    // LÓGICA DE TIPO APRIMORADA
+    let workType = data.type; // Tenta pegar o tipo explícito primeiro
+    if (!workType) { // Se não existir, usa a chave como fallback
+        const keyPrefix = workKey.substring(2, 4); // Extrai 'kr', 'jp', 'ch', 'ons'
+        switch (keyPrefix) {
+            case 'kr': workType = 'manhwa'; break;
+            case 'jp': workType = 'manga'; break;
+            case 'ch': workType = 'manhua'; break;
+            case 'ons': workType = 'oneshot'; break;
+            default: workType = 'N/A';
+        }
+    }
+
+    const cardData = {
+        url: data.url,
+        title: work.title,
+        description: work.description || 'Sem descrição.',
+        imageUrl: data.cover_url,
+        author: work.author || 'N/A',
+        artist: work.artist || 'N/A',
+        type: workType, // Usa o tipo que acabamos de determinar
+        status: work.status || 'N/A',
+        chapterCount: work.chapters.length,
+    };
+    // Reutiliza a função já existente para criar cards de mangá
+    return createCardHTML(cardData, isFavorite);
+};
+
+// NOVO: Função para renderizar a lista de scans
+function renderScansList(state) {
+    const dom = getDOM();
+    dom.scansContent.innerHTML = `
+        <h2 class="text-2xl font-bold text-white mb-4">Explorar Scans</h2>
+        <div id="scans-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            ${state.scansList.map(scan => createScanCardHTML(scan)).join('')}
+        </div>
+    `;
+}
+
+// NOVO: Função para renderizar as obras de uma scan selecionada
+function renderScanWorks(state) {
+    const dom = getDOM();
+    const { name, description } = state.selectedScan.scan_info;
+    // MODIFICADO: Usar Object.entries para ter acesso à chave e ao valor
+    const works = Object.entries(state.selectedScan.works);
+
+    dom.scansContent.innerHTML = `
+        <div class="mb-6">
+            <button id="back-to-scans-btn" class="text-blue-400 hover:text-blue-300 mb-4">&larr; Voltar para a lista de Scans</button>
+            <h2 class="text-3xl font-bold text-white">${name}</h2>
+            <p class="text-gray-400 mt-1">${description}</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            ${
+                // MODIFICADO: Passar a chave (key) e o valor (work)
+                works.map(([key, work]) => createWorkCardHTML(key, work, state.favorites.has(work.chapters[0].url))).join('')
+            }
+        </div>
+    `;
+}
+
 export function renderApp() {
     const state = store.getState();
     const dom = getDOM();
@@ -381,17 +463,28 @@ export function renderApp() {
 
     const isLibraryActive = state.activeTab === 'library';
     const isUpdatesActive = state.activeTab === 'updates';
+    const isScansActive = state.activeTab === 'scans'; // NOVO
+
     dom.searchContainer.classList.toggle('hidden', !isLibraryActive);
     dom.libraryControls.classList.toggle('hidden', !isLibraryActive);
     dom.updatesContent.classList.toggle('hidden', !isUpdatesActive);
-    dom.contentContainer.classList.toggle('hidden', isUpdatesActive);
-    dom.paginationControls.classList.toggle('hidden', isUpdatesActive);
+    dom.scansContent.classList.toggle('hidden', !isScansActive); // NOVO
+    dom.contentContainer.classList.toggle('hidden', isUpdatesActive || isScansActive); // MODIFICADO
+    dom.paginationControls.classList.toggle('hidden', isUpdatesActive || isScansActive); // MODIFICADO
 
     if (isLibraryActive) {
         dom.typeFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.type === state.activeTypeFilter));
         dom.statusFilterContainer.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.status === state.activeStatusFilter));
     } else if (isUpdatesActive) {
         renderUpdatesTab(state);
+    } else if (isScansActive) { // NOVO BLOCO LÓGICO
+        if (state.isLoadingScans) {
+            dom.scansContent.innerHTML = `<div class="flex justify-center items-center py-16"><div class="loader"></div></div>`;
+        } else if (state.selectedScan) {
+            renderScanWorks(state);
+        } else {
+            renderScansList(state);
+        }
     }
 
     let itemsToDisplay = [];
@@ -424,7 +517,7 @@ export function renderApp() {
             break;
     }
 
-    if (!isUpdatesActive) {
+    if (!isUpdatesActive && !isScansActive) { // MODIFICADO
       renderCards(dom.contentContainer, itemsToDisplay, state.favorites);
       if (state.activeTab === 'library') {
           renderPagination(dom.paginationControls, totalPaginationItems, state.currentPage);

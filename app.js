@@ -6,6 +6,8 @@ import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { errorNotificationManager } from './error-handler.js';
 import { GestureNavigationManager } from './touch-gestures.js';
 import { analytics } from './local-analytics.js';
+import { SCANS_INDEX_URL } from './constants.js'; // Importar a nova constante
+import { fetchWithTimeout } from './shared-utils.js'; // Supondo que fetchWithTimeout está em shared-utils.js ou api.js
 
 // Sistema global de debug
 window.GIKAMURA_DEBUG = localStorage.getItem('gikamura_debug') === 'true';
@@ -200,6 +202,38 @@ function setupEventListeners() {
         analytics?.trackUserInteraction('mark_all_read_btn', 'click');
     });
 
+    // NOVO: Adicionar manipulador de eventos para a página de Scans
+    dom.scansContent.addEventListener('click', async (e) => {
+        const scanCard = e.target.closest('.scan-card');
+        const backButton = e.target.closest('#back-to-scans-btn');
+        const favoriteBtn = e.target.closest('.favorite-btn');
+
+        if (scanCard) {
+            const url = scanCard.dataset.url;
+            store.setLoadingScans(true);
+            try {
+                const response = await fetchWithTimeout(url);
+                const scanData = await response.json();
+                store.setSelectedScan(scanData);
+            } catch (error) {
+                console.error('Erro ao buscar dados da scan:', error);
+                store.setError('Não foi possível carregar os dados desta scan.');
+                store.setLoadingScans(false);
+            }
+        }
+
+        if (backButton) {
+            store.clearSelectedScan();
+        }
+
+        if (favoriteBtn) {
+            const mangaUrl = favoriteBtn.dataset.url;
+            store.toggleFavorite(mangaUrl);
+            favoriteBtn.classList.add('pulsing');
+            favoriteBtn.addEventListener('animationend', () => favoriteBtn.classList.remove('pulsing'), { once: true });
+        }
+    });
+
     // Sistema de busca será configurado após carregamento dos dados
     // Nota: removido o event listener direto para evitar conflitos
 
@@ -386,12 +420,41 @@ async function findNewChapterUpdates(oldManga, newManga) {
     return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
 }
 
+// NOVO: Função para buscar o índice de scans
+async function fetchScansIndex() {
+    try {
+        const response = await fetchWithTimeout(SCANS_INDEX_URL);
+        const index = await response.json();
+
+        // O índice principal contém as scans como chaves de um objeto
+        // Vamos transformá-lo em um array e buscar as informações básicas de cada uma
+        const scanPromises = Object.values(index).map(async (scanUrl) => {
+            const scanResponse = await fetchWithTimeout(scanUrl);
+            const scanData = await scanResponse.json();
+            return {
+                scan_info: scanData.scan_info,
+                url: scanUrl // Adicionamos a URL para buscar o conteúdo completo depois
+            };
+        });
+        
+        const scansList = await Promise.all(scanPromises);
+        store.setScansList(scansList);
+
+    } catch (error) {
+        console.error('Falha ao buscar índice de scans:', error);
+        store.setScansList([]); // Define como vazio em caso de erro
+    }
+}
+
 async function initializeApp() {
     const dom = getDOM();
     await initializeStore();
     store.subscribe(renderApp);
     setupEventListeners();
     renderApp();
+
+    // Iniciar a busca do índice de scans em paralelo
+    fetchScansIndex();
 
     // Configurar gestos touch
     let gestureManager = null;

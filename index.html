@@ -364,17 +364,13 @@
         <div class="bg-[#1a1a1a]/80 backdrop-blur-md rounded-lg shadow-xl p-4 mb-6 sticky top-4 z-30 border border-neutral-800/60">
             <div class="flex flex-wrap justify-between items-center gap-4">
                 <nav id="tabs" class="flex items-center bg-[#050505]/50 rounded-lg p-1 space-x-1 border border-neutral-700" role="tablist" aria-label="Navegação principal">
-                    <button data-tab="home" class="tab active px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700 focus:ring-2 focus:ring-blue-500" role="tab" aria-selected="true" aria-controls="main-content">
-                        Início
-                        <span class="sr-only">- Página inicial com últimas atualizações</span>
-                    </button>
-                    <button data-tab="library" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700 focus:ring-2 focus:ring-blue-500" role="tab" aria-selected="false" aria-controls="main-content">
-                        Biblioteca
-                        <span class="sr-only">- Catálogo completo com busca e filtros</span>
-                    </button>
                     <button data-tab="favorites" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700 focus:ring-2 focus:ring-blue-500" role="tab" aria-selected="false" aria-controls="main-content">
                         Favoritos
                         <span class="sr-only">- Suas obras favoritas</span>
+                    </button>
+                    <button data-tab="scans" class="tab px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700 focus:ring-2 focus:ring-blue-500" role="tab" aria-selected="false" aria-controls="main-content">
+                        Scans
+                        <span class="sr-only">- Lista de scans disponíveis</span>
                     </button>
                     <button data-tab="updates" class="tab relative px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700 focus:ring-2 focus:ring-blue-500" role="tab" aria-selected="false" aria-controls="main-content">
                         Atualizações
@@ -460,6 +456,7 @@
                 <div id="updates-list" class="space-y-4">
                 </div>
             </div>
+            <div id="scans-content" class="hidden"></div>
             <div id="content-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             <div id="pagination-controls" class="flex justify-center items-center mt-8 space-x-2"></div>
         </main>

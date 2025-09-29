@@ -82,6 +82,29 @@ export const store = {
     setLibrarySortOrder: (order) => { state.librarySortOrder = order; notify(); },
     setLoading: (isLoading) => { state.isLoading = isLoading; notify(); },
     setError: (errorMessage) => { state.error = errorMessage; notify(); },
+
+    // NOVAS FUNÇÕES PARA O ESTADO DE SCANS
+    setScansList: (scansArray) => {
+        state.scansList = scansArray;
+        state.isLoadingScans = false;
+        notify();
+    },
+    
+    setSelectedScan: (scanData) => {
+        state.selectedScan = scanData;
+        state.isLoadingScans = false;
+        notify();
+    },
+
+    clearSelectedScan: () => {
+        state.selectedScan = null;
+        notify();
+    },
+
+    setLoadingScans: (isLoading) => {
+        state.isLoadingScans = isLoading;
+        notify();
+    },
 };
 
 export async function initializeStore() {
