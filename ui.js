@@ -395,7 +395,8 @@ async function renderScanWorks(state) {
     const dom = getDOM();
     const { name, description } = state.selectedScan.scan_info;
     const works = Object.entries(state.selectedScan.works);
-    const { fetchWithTimeout, decodeCubariUrl, getWorkType } = window.SharedUtils;
+    // Adiciona processMangaUrl para centralizar a lógica de busca
+    const { processMangaUrl, getWorkType } = window.SharedUtils;
 
     // Exibe o cabeçalho e um loader inicial
     dom.scansContent.innerHTML = `
@@ -428,32 +429,30 @@ async function renderScanWorks(state) {
                 const cubariUrl = work.chapters[0]?.url;
                 if (!cubariUrl) return null;
 
-                const decodedUrl = decodeCubariUrl(cubariUrl);
-                if (!decodedUrl) return null;
+                // Pré-popula dados do índice da scan para usar como fallback
+                const preFetchedData = {
+                    title: work.title,
+                    cover_url: work.chapters[0]?.cover_url || null,
+                    type: getWorkType(key, {}) // Determina o tipo inicial pela chave
+                };
 
-                try {
-                    const response = await fetchWithTimeout(decodedUrl, { timeout: 15000 });
-                    if (!response.ok) return null;
+                // Usa a função robusta e centralizada para buscar e processar os dados
+                const detailedWork = await processMangaUrl(cubariUrl, preFetchedData);
 
-                    const detailedWork = await response.json();
-                    
-                    return {
-                        ...detailedWork,
-                        url: cubariUrl,
-                        imageUrl: detailedWork.cover || work.chapters[0]?.cover_url,
-                        type: getWorkType(key, detailedWork),
-                        chapterCount: Object.keys(detailedWork.chapters || {}).length,
-                    };
-                } catch (e) {
-                    console.error(`Falha ao buscar detalhes para ${key}:`, e);
-                    return null; // Retorna nulo se um fetch individual falhar
+                if (!detailedWork || detailedWork.error) {
+                    // A própria função processMangaUrl já loga o erro detalhado
+                    return null;
                 }
+                
+                // Garante que o tipo seja definido, usando a função auxiliar como fallback final
+                detailedWork.type = getWorkType(key, detailedWork);
+
+                return detailedWork;
             });
 
             const detailedWorksBatch = (await Promise.all(fetchPromises)).filter(Boolean);
 
             if (grid) {
-                // Remove o loader inicial no primeiro lote bem-sucedido
                 const loader = document.getElementById('scan-works-loader');
                 if (loader) loader.remove();
 
@@ -475,7 +474,7 @@ async function renderScanWorks(state) {
         }
 
     } catch (error) {
-        console.error("Erro ao buscar detalhes das obras da scan:", error);
+        console.error("Erro geral ao renderizar obras da scan:", error);
         const loader = document.getElementById('scan-works-loader');
         if (loader) loader.remove();
         if (grid) {
