@@ -8,6 +8,9 @@ import { GestureNavigationManager } from './touch-gestures.js';
 import { analytics } from './local-analytics.js';
 import { SCANS_INDEX_URL } from './constants.js';
 
+// ADICIONE ESTA LINHA NO TOPO
+import './shared-utils.js';
+
 // Sistema global de debug
 window.GIKAMURA_DEBUG = localStorage.getItem('gikamura_debug') === 'true';
 
