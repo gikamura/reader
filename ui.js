@@ -138,6 +138,7 @@ export function getDOM() {
             updatesContent: document.getElementById('updates-content'),
             updatesList: document.getElementById('updates-list'),
             updatesBadge: document.getElementById('updates-badge'),
+            scansContent: document.getElementById('scans-content'), // Adicionado
             notificationsEnabledToggle: document.getElementById('notifications-enabled'),
             popupsEnabledToggle: document.getElementById('popups-enabled'),
             updatePopupContainer: document.getElementById('update-popup-container'),
