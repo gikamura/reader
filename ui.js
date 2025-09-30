@@ -573,7 +573,11 @@ export function renderApp() {
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
             break;
         case 'favorites':
-            itemsToDisplay = state.allManga.filter(m => state.favorites.has(m.url));
+            // Combinar obras da biblioteca (allManga) com obras de todas as scans já carregadas
+            const allAvailableWorks = [...state.allManga, ...state.scanWorks];
+            // Remover duplicatas baseado na URL
+            const uniqueWorks = Array.from(new Map(allAvailableWorks.map(w => [w.url, w])).values());
+            itemsToDisplay = uniqueWorks.filter(m => state.favorites.has(m.url));
             break;
     }
 
