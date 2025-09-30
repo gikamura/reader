@@ -160,7 +160,6 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         let decodedPath = b64DecodeUnicode(b64);
 
         if (decodedPath.startsWith('raw/')) decodedPath = decodedPath.substring(4);
-        decodedPath = decodedPath.replace('/refs/heads/', '/');
 
         const pathSegments = decodedPath.split('/');
         const encodedPath = pathSegments.map(segment => encodeURIComponent(segment)).join('/');

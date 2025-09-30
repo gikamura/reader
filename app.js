@@ -1,4 +1,4 @@
-import { initializeStore, store } from './store.js';
+import { initializeStore, store, fetchAndDisplayScanWorks } from './store.js';
 import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup, loadingManager } from './ui.js';
 import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion } from './cache.js';
 
@@ -210,19 +210,12 @@ function setupEventListeners() {
         const scanCard = e.target.closest('.scan-card');
         const backButton = e.target.closest('#back-to-scans-btn');
         const favoriteBtn = e.target.closest('.favorite-btn');
+        const paginationBtn = e.target.closest('.pagination-btn');
 
         if (scanCard) {
             const url = scanCard.dataset.url;
-            store.setLoadingScans(true);
-            try {
-                const response = await fetchWithTimeout(url);
-                const scanData = await response.json();
-                store.setSelectedScan(scanData);
-            } catch (error) {
-                console.error('Erro ao buscar dados da scan:', error);
-                store.setError('Não foi possível carregar os dados desta scan.');
-                store.setLoadingScans(false);
-            }
+            // A action fetchAndDisplayScanWorks agora orquestra todo o processo
+            fetchAndDisplayScanWorks(url);
         }
 
         if (backButton) {
@@ -234,6 +227,12 @@ function setupEventListeners() {
             store.toggleFavorite(mangaUrl);
             favoriteBtn.classList.add('pulsing');
             favoriteBtn.addEventListener('animationend', () => favoriteBtn.classList.remove('pulsing'), { once: true });
+        }
+
+        if (paginationBtn) {
+            const page = parseInt(paginationBtn.dataset.page, 10);
+            store.setScanWorksCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     });
 

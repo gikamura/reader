@@ -391,96 +391,43 @@ function renderScansList(state) {
 }
 
 // NOVO: Lógica aprimorada para renderizar as obras de uma scan
-async function renderScanWorks(state) {
+function renderScanWorks(state) {
     const dom = getDOM();
     const { name, description } = state.selectedScan.scan_info;
-    const works = Object.entries(state.selectedScan.works);
-    // Adiciona processMangaUrl para centralizar a lógica de busca
-    const { processMangaUrl, getWorkType } = window.SharedUtils;
 
-    // Exibe o cabeçalho e um loader inicial
+    // Prepara o layout inicial com cabeçalho
     dom.scansContent.innerHTML = `
         <div class="mb-6">
             <button id="back-to-scans-btn" class="text-blue-400 hover:text-blue-300 mb-4">&larr; Voltar para a lista de Scans</button>
             <h2 class="text-3xl font-bold text-white">${name}</h2>
             <p class="text-gray-400 mt-1">${description}</p>
         </div>
-        <div id="scan-works-grid" class="grid grid-cols-1 md:col-span-2 lg:col-span-3 gap-6">
-            <div id="scan-works-loader" class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>
-        </div>
+        <div id="scan-works-grid" class="grid grid-cols-1 md:col-span-2 lg:col-span-3 gap-6"></div>
+        <div id="scan-pagination-controls" class="flex justify-center items-center mt-8 space-x-2"></div>
     `;
 
-    // Adiciona o event listener para o botão de voltar
-    dom.scansContent.querySelector('#back-to-scans-btn').addEventListener('click', () => {
-        store.dispatch({ type: 'SET_SELECTED_SCAN', payload: null });
-    });
-
     const grid = document.getElementById('scan-works-grid');
-    let worksRendered = 0;
+    const paginationContainer = document.getElementById('scan-pagination-controls');
 
-    const BATCH_SIZE = 5;
-    const BATCH_DELAY = 500; // ms
-
-    try {
-        for (let i = 0; i < works.length; i += BATCH_SIZE) {
-            const batch = works.slice(i, i + BATCH_SIZE);
-
-            const fetchPromises = batch.map(async ([key, work]) => {
-                const cubariUrl = work.chapters[0]?.url;
-                if (!cubariUrl) return null;
-
-                // Pré-popula dados do índice da scan para usar como fallback
-                const preFetchedData = {
-                    title: work.title,
-                    cover_url: work.chapters[0]?.cover_url || null,
-                    type: getWorkType(key, {}) // Determina o tipo inicial pela chave
-                };
-
-                // Usa a função robusta e centralizada para buscar e processar os dados
-                const detailedWork = await processMangaUrl(cubariUrl, preFetchedData);
-
-                if (!detailedWork || detailedWork.error) {
-                    // A própria função processMangaUrl já loga o erro detalhado
-                    return null;
-                }
-                
-                // Garante que o tipo seja definido, usando a função auxiliar como fallback final
-                detailedWork.type = getWorkType(key, detailedWork);
-
-                return detailedWork;
-            });
-
-            const detailedWorksBatch = (await Promise.all(fetchPromises)).filter(Boolean);
-
-            if (grid) {
-                const loader = document.getElementById('scan-works-loader');
-                if (loader) loader.remove();
-
-                if (detailedWorksBatch.length > 0) {
-                    grid.innerHTML += detailedWorksBatch.map(work => createCardHTML(work, state.favorites.has(work.url))).join('');
-                    worksRendered += detailedWorksBatch.length;
-                }
-            }
-
-            if (i + BATCH_SIZE < works.length) {
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-            }
-        }
-
-        if (worksRendered === 0) {
-            const loader = document.getElementById('scan-works-loader');
-            if (loader) loader.remove();
-            grid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-8">Nenhuma obra encontrada para esta scan.</p>`;
-        }
-
-    } catch (error) {
-        console.error("Erro geral ao renderizar obras da scan:", error);
-        const loader = document.getElementById('scan-works-loader');
-        if (loader) loader.remove();
-        if (grid) {
-            grid.innerHTML = `<p class="col-span-full text-center text-red-500 py-8">Falha ao carregar obras. Tente novamente mais tarde.</p>`;
-        }
+    if (state.isLoadingScans && state.scanWorks.length === 0) {
+        grid.innerHTML = `<div class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>`;
+        return;
     }
+
+    if (state.scanWorks.length === 0) {
+        grid.innerHTML = `<p class="col-span-full text-center text-gray-500 py-8">Nenhuma obra encontrada para esta scan.</p>`;
+        return;
+    }
+
+    // Lógica de paginação
+    const totalItems = state.scanWorks.length;
+    const itemsToDisplay = state.scanWorks.slice(
+        (state.scanWorksCurrentPage - 1) * ITEMS_PER_PAGE,
+        state.scanWorksCurrentPage * ITEMS_PER_PAGE
+    );
+
+    grid.innerHTML = itemsToDisplay.map(work => createCardHTML(work, state.favorites.has(work.url))).join('');
+    renderPagination(paginationContainer, totalItems, state.scanWorksCurrentPage);
 }
 
 export function renderApp() {

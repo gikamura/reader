@@ -32,8 +32,10 @@ export function getInitialState() {
         error: null,
         // NOVOS ESTADOS PARA SCANS
         scansList: [],
-        selectedScan: null, // Armazenará os dados da scan selecionada (ou null se nenhuma estiver selecionada)
+        selectedScan: null, // Armazenará os dados da scan selecionada (info e lista de obras)
         isLoadingScans: true,
+        scanWorks: [], // Armazenará os detalhes completos das obras da scan selecionada
+        scanWorksCurrentPage: 1, // Paginação para as obras da scan
     };
 }
 
