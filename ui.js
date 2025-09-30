@@ -19,14 +19,25 @@ window.handleImageError = function(img, originalUrl) {
     // Marcar que vai tentar o proxy
     img.dataset.proxyAttempted = 'true';
 
+    // Validar e corrigir URL se necessário
+    let validUrl = originalUrl;
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    const hasValidExtension = validExtensions.some(ext => originalUrl.toLowerCase().endsWith(ext));
+
+    if (!hasValidExtension) {
+        // Se termina com .jp ou outra extensão inválida, trocar por .jpg
+        validUrl = originalUrl.replace(/\.[^.]+$/, '.jpg');
+        console.log(`🔧 Corrigindo extensão: ${originalUrl} → ${validUrl}`);
+    }
+
     // Tentar com proxy wsrv.nl (suporta MyAnimeList e outros CDNs bloqueados)
     // Detectar tamanho para otimização
     const width = img.classList.contains('w-12') ? 48 : 256;
     const height = img.classList.contains('h-16') ? 64 : 384;
 
-    const proxiedUrl = `https://wsrv.nl/?url=${encodeURIComponent(originalUrl)}&w=${width}&h=${height}&fit=cover&output=webp`;
+    const proxiedUrl = `https://wsrv.nl/?url=${encodeURIComponent(validUrl)}&w=${width}&h=${height}&fit=cover&output=webp`;
 
-    console.log(`🔄 Tentando proxy wsrv.nl para: ${originalUrl}`);
+    console.log(`🔄 Tentando proxy wsrv.nl para: ${validUrl}`);
     img.src = proxiedUrl;
 };
 

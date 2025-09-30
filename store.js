@@ -125,15 +125,8 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
     store.setLoadingScans(true);
 
     try {
-        // Etapa 0: Tentar carregar do cache primeiro
-        const cachedWorks = await loadScanWorksFromCache(scanUrl);
-        if (cachedWorks && cachedWorks.length > 0) {
-            console.log(`✅ ${cachedWorks.length} obras carregadas do cache`);
-            store.setScanWorks(cachedWorks);
-            // Continuar buscando dados frescos em background para atualizar
-        }
-
-        // Etapa 1: Buscar os dados da scan (Nível 2)
+        // Etapa 1: Buscar os dados da scan (Nível 2) PRIMEIRO
+        // Isso garante que selectedScan seja definida ANTES de carregar obras
         const { fetchWithTimeout, processMangaUrl, getWorkType } = window.SharedUtils;
         const response = await fetchWithTimeout(scanUrl);
         if (!response.ok) throw new Error(`Falha ao buscar dados da scan: ${response.statusText}`);
@@ -147,10 +140,27 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
 
         store.setSelectedScan(scan); // Guarda a informação básica da scan
 
+        // Etapa 1.5: Tentar carregar do cache AGORA (após selectedScan estar definida)
+        const cachedWorks = await loadScanWorksFromCache(scanUrl);
+        if (cachedWorks && cachedWorks.length > 0) {
+            console.log(`✅ ${cachedWorks.length} obras carregadas do cache`);
+            store.setScanWorks(cachedWorks);
+            store.setLoadingScans(false);
+
+            // Se cache está completo (mesmo número de obras), não precisa refetch
+            if (cachedWorks.length === Object.keys(scan.works).length) {
+                console.log(`💾 Cache completo! Não é necessário buscar novamente.`);
+                return;
+            } else {
+                console.log(`🔄 Cache parcial (${cachedWorks.length}/${Object.keys(scan.works).length}), buscando obras restantes`);
+                store.setLoadingScans(true);
+            }
+        }
+
         // Etapa 2: Buscar os detalhes de todas as obras (Nível 3)
         const works = Object.entries(scan.works);
-        const BATCH_SIZE = 5;
-        const BATCH_DELAY = 500;
+        const BATCH_SIZE = 100; // Processar 100 obras por lote (igual à biblioteca)
+        const BATCH_DELAY = 1000; // 1 segundo entre lotes
         let allDetailedWorks = [];
 
         for (let i = 0; i < works.length; i += BATCH_SIZE) {
