@@ -1,6 +1,34 @@
 import { store } from './store.js';
 import { ITEMS_PER_PAGE } from './constants.js';
 
+// Sistema de fallback inteligente para imagens
+window.handleImageError = function(img, originalUrl) {
+    // Se já tentou o proxy, vai para placeholder final
+    if (img.dataset.proxyAttempted === 'true') {
+        img.onerror = null;
+
+        // Detectar tamanho da imagem para placeholder adequado
+        const width = img.classList.contains('w-12') ? 48 : 256;
+        const height = img.classList.contains('h-16') ? 64 : 384;
+
+        img.src = `https://placehold.co/${width}x${height}/1f2937/ef4444?text=Indisponivel`;
+        console.log(`❌ Imagem falhou após proxy: ${originalUrl}`);
+        return;
+    }
+
+    // Marcar que vai tentar o proxy
+    img.dataset.proxyAttempted = 'true';
+
+    // Tentar com proxy wsrv.nl (suporta MyAnimeList e outros CDNs bloqueados)
+    // Detectar tamanho para otimização
+    const width = img.classList.contains('w-12') ? 48 : 256;
+    const height = img.classList.contains('h-16') ? 64 : 384;
+
+    const proxiedUrl = `https://wsrv.nl/?url=${encodeURIComponent(originalUrl)}&w=${width}&h=${height}&fit=cover&output=webp`;
+
+    console.log(`🔄 Tentando proxy wsrv.nl para: ${originalUrl}`);
+    img.src = proxiedUrl;
+};
 
 // Sistema de loading states e feedback visual
 class LoadingStateManager {
@@ -223,7 +251,7 @@ function createUpdateHistoryItemHTML(update) {
 
     return `
     <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
-        <img src="${manga.imageUrl}" alt="Capa de ${escapedTitle}" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/48x64/1f2937/ef4444?text=!';">
+        <img src="${manga.imageUrl}" alt="Capa de ${escapedTitle}" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0" loading="lazy" onerror="handleImageError(this, '${manga.imageUrl.replace(/'/g, "\\'")}')">
         <div class="overflow-hidden">
             <p class="font-semibold text-white truncate">${manga.title}</p>
             <p class="text-sm text-gray-400 truncate">Novos capítulos: ${chapterText}</p>
@@ -270,7 +298,7 @@ const createCardHTML = (data, isFavorite) => {
     <div class="relative bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl group" style="height: 16rem;">
         <a href="${data.url}" target="_blank" rel="noopener noreferrer" class="relative flex flex-grow w-full h-full">
             <div class="w-1/3 flex-shrink-0 bg-[#050505]">
-                <img src="${data.imageUrl}" alt="Capa de ${escapedTitle}" class="w-full h-full object-cover" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/256x384/1f2937/ef4444?text=Indisponivel';">
+                <img src="${data.imageUrl}" alt="Capa de ${escapedTitle}" class="w-full h-full object-cover" loading="lazy" onerror="handleImageError(this, '${data.imageUrl.replace(/'/g, "\\'")}')">
             </div>
             <div class="flex flex-col flex-grow p-4 text-white overflow-hidden w-2/3">
                 <div class="h-10"></div>
