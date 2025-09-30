@@ -223,10 +223,20 @@ function setupEventListeners() {
         }
 
         if (favoriteBtn) {
+            e.preventDefault();
+            e.stopPropagation(); // Evitar abrir o link ao clicar
+
             const mangaUrl = favoriteBtn.dataset.url;
+            const { favorites } = store.getState();
+            const action = favorites.has(mangaUrl) ? 'remove' : 'add';
+
             store.toggleFavorite(mangaUrl);
+
             favoriteBtn.classList.add('pulsing');
             favoriteBtn.addEventListener('animationend', () => favoriteBtn.classList.remove('pulsing'), { once: true });
+
+            // Analytics: track favorite action
+            analytics?.trackFavoriteAction(mangaUrl, action);
         }
 
         if (paginationBtn) {
