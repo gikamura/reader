@@ -197,6 +197,9 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             ? preFetchedData.cover_url
             : (data.cover ? data.cover : 'https://placehold.co/256x384/1f2937/7ca3f5?text=Sem+Capa');
 
+        // Tentar diferentes campos para o status (algumas scans usam nomes diferentes)
+        const statusValue = data.status || data.Status || data.publication_status || 'Ongoing';
+
         return {
             url: chapterUrl,
             title: sanitizeInput(preFetchedData.title || data.title) || 'N/A',
@@ -206,7 +209,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             artist: sanitizeInput(data.artist),
             genres: Array.isArray(data.genres) ? data.genres.map(g => sanitizeInput(g)) : [],
             type: preFetchedData.type || null,
-            status: sanitizeInput(data.status),
+            status: sanitizeInput(statusValue),
             chapters: data.chapters,
             chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
             lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
