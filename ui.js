@@ -537,6 +537,11 @@ export function renderApp() {
             dom.scansContent.innerHTML = `<div class="flex justify-center items-center py-16"><div class="loader"></div></div>`;
         } else if (state.selectedScan) {
             renderScanWorks(state);
+            // Trigger evento para configurar autocomplete após render
+            setTimeout(() => {
+                const event = new CustomEvent('scan-works-rendered');
+                window.dispatchEvent(event);
+            }, 100);
         } else {
             renderScansList(state);
         }

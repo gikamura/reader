@@ -27,6 +27,10 @@ let autocomplete = null;
 let searchDebounce = null;
 let isSearchSystemInitialized = false;
 
+// Sistema de autocomplete para scans
+let scanAutocomplete = null;
+let scanSearchDebounce = null;
+
 // Debug helper
 const debugLog = (message, data = {}) => {
     if (window.GIKAMURA_DEBUG) {
@@ -124,6 +128,74 @@ const setupIntegratedSearchSystem = () => {
             context: 'search_system_setup',
             severity: 'warning'
         });
+    }
+};
+
+// Sistema de autocomplete para busca nas scans
+const setupScanSearchAutocomplete = () => {
+    const scanSearchInput = document.getElementById('scan-search-input');
+    const { scanWorks } = store.getState();
+
+    if (!scanSearchInput || scanWorks.length === 0) {
+        debugLog('Input de busca ou obras das scans não disponíveis');
+        return;
+    }
+
+    try {
+        // Limpar autocomplete anterior se existir
+        if (scanAutocomplete) {
+            scanAutocomplete.destroy();
+            scanAutocomplete = null;
+        }
+        if (scanSearchDebounce) {
+            scanSearchDebounce.cancel();
+            scanSearchDebounce = null;
+        }
+
+        // Configurar debounce para busca nas scans
+        scanSearchDebounce = new SmartDebounce(
+            (query) => {
+                debugLog('Executando busca em scan', { query });
+                store.setScanSearchQuery(query);
+
+                // Analytics
+                if (query.length >= 2) {
+                    analytics?.trackSearch(query, 0, 'scan_search_input');
+                }
+            },
+            {
+                wait: 250,
+                minLength: 0,
+                maxWait: 1000,
+                immediate: false
+            }
+        );
+
+        // Configurar autocomplete para scans
+        scanAutocomplete = new SmartAutocomplete(scanSearchInput, scanWorks, {
+            maxSuggestions: 8,
+            showRecentSearches: false, // Desabilitar histórico para scans
+            onSelect: (suggestion) => {
+                debugLog('Autocomplete de scan selecionado', { suggestion });
+                scanSearchDebounce.execute(suggestion.text);
+
+                // Analytics
+                analytics?.trackUserInteraction('scan_autocomplete', 'select', {
+                    suggestionType: suggestion.type,
+                    query: suggestion.text
+                });
+            },
+            onInput: (query) => {
+                debugLog('Input no autocomplete de scan', { query });
+                scanSearchDebounce.execute(query);
+            }
+        });
+
+        debugLog('Autocomplete de scans inicializado com sucesso', { worksCount: scanWorks.length });
+
+    } catch (error) {
+        console.error('Erro ao configurar autocomplete de scans:', error);
+        debugLog('Erro na configuração do autocomplete de scans', { error: error.message });
     }
 };
 
@@ -246,18 +318,8 @@ function setupEventListeners() {
         }
     });
 
-    // NOVO: Event listener para busca nas scans (delegado no scansContent)
-    dom.scansContent.addEventListener('input', (e) => {
-        if (e.target.id === 'scan-search-input') {
-            const query = e.target.value;
-            store.setScanSearchQuery(query);
-
-            // Analytics: track scan search
-            if (query.length >= 2) {
-                analytics?.trackSearch(query, 0, 'scan_search');
-            }
-        }
-    });
+    // O event listener de busca nas scans agora é gerenciado pelo SmartAutocomplete
+    // configurado via setupScanSearchAutocomplete() quando as obras são renderizadas
 
     // Sistema de busca será configurado após carregamento dos dados
     // Nota: removido o event listener direto para evitar conflitos
@@ -314,6 +376,12 @@ function setupEventListeners() {
         backToTopButton.classList.toggle('hidden', window.scrollY <= 300);
     });
     backToTopButton.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+    // Configurar autocomplete quando obras das scans forem renderizadas
+    window.addEventListener('scan-works-rendered', () => {
+        debugLog('Evento scan-works-rendered recebido, configurando autocomplete');
+        setupScanSearchAutocomplete();
+    });
 
     dom.notificationsEnabledToggle.addEventListener('change', (e) => {
         store.setSettings({ notificationsEnabled: e.target.checked });
