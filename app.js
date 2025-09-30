@@ -30,6 +30,7 @@ let isSearchSystemInitialized = false;
 // Sistema de autocomplete para scans
 let scanAutocomplete = null;
 let scanSearchDebounce = null;
+let currentScanUrl = null; // Track qual scan tem autocomplete ativo
 
 // Debug helper
 const debugLog = (message, data = {}) => {
@@ -134,10 +135,17 @@ const setupIntegratedSearchSystem = () => {
 // Sistema de autocomplete para busca nas scans
 const setupScanSearchAutocomplete = () => {
     const scanSearchInput = document.getElementById('scan-search-input');
-    const { scanWorks } = store.getState();
+    const { scanWorks, selectedScan } = store.getState();
 
-    if (!scanSearchInput || scanWorks.length === 0) {
+    if (!scanSearchInput || scanWorks.length === 0 || !selectedScan) {
         debugLog('Input de busca ou obras das scans não disponíveis');
+        return;
+    }
+
+    // Verificar se já está configurado para esta scan
+    const scanUrl = selectedScan.url || JSON.stringify(selectedScan.scan_info);
+    if (currentScanUrl === scanUrl && scanAutocomplete) {
+        debugLog('Autocomplete já configurado para esta scan, ignorando');
         return;
     }
 
@@ -151,6 +159,9 @@ const setupScanSearchAutocomplete = () => {
             scanSearchDebounce.cancel();
             scanSearchDebounce = null;
         }
+
+        // Atualizar scan atual
+        currentScanUrl = scanUrl;
 
         // Configurar debounce para busca nas scans
         scanSearchDebounce = new SmartDebounce(
@@ -291,6 +302,17 @@ function setupEventListeners() {
         }
 
         if (backButton) {
+            // Limpar autocomplete ao voltar para lista de scans
+            if (scanAutocomplete) {
+                scanAutocomplete.destroy();
+                scanAutocomplete = null;
+            }
+            if (scanSearchDebounce) {
+                scanSearchDebounce.cancel();
+                scanSearchDebounce = null;
+            }
+            currentScanUrl = null;
+
             store.clearSelectedScan();
         }
 
