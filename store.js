@@ -119,7 +119,6 @@ export const store = {
 
 export async function fetchAndDisplayScanWorks(scanUrl) {
     store.setLoadingScans(true);
-    store.setSelectedScan(null); // Limpa a scan anterior
     store.setScanWorks([]);
     store.setScanWorksCurrentPage(1);
 

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Este arquivo fornece orientações para o Claude Code (claude.ai/code) ao trabalhar com código neste repositório.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Arquitetura da Aplicação
 
@@ -17,9 +17,10 @@ Esta é uma Progressive Web App (PWA) para leitura de mangás/manhwas/manhuas qu
 
 ### Módulos de Performance e UX
 
-
+- **cache-coordinator.js**: Coordenador de cache unificado entre contexto principal e Service Worker
+- **input-validator.js**: Sistema de validação anti-XSS e injection attacks
+- **shared-utils.js**: Utilitários compartilhados entre contexto principal e Workers (compatível com import e importScripts)
 - **smart-debounce.js**: Debounce inteligente e autocomplete
-- **smart-cache.js**: Cache inteligente com estratégias avançadas
 - **touch-gestures.js**: Gerenciamento de gestos para navegação touch
 - **error-handler.js**: Sistema centralizado de tratamento de erros
 - **local-analytics.js**: Analytics locais sem dependências externas
@@ -149,11 +150,15 @@ O store gerencia:
 - Analytics locais sem dependências externas
 - Sistema de gestos touch responsivo
 - Tratamento centralizado de erros
+- Validação de entrada obrigatória via `InputValidator` para prevenir XSS
+- Utilitários compartilhados em `shared-utils.js` para compatibilidade com Workers
 
 ### Estrutura de Arquivos
 - Arquivos estáticos na raiz
 - Icons na pasta `/icons` (contém icon-192.png e badge-72.png)
 - Documentação na pasta `/docs`
+- Scripts de automação na pasta `/scripts`
+- Testes de qualidade na pasta `/test`
 - Sem processo de build ou bundling
 
 ## Limitações e Considerações
@@ -232,9 +237,17 @@ Se os cards não aparecem:
 - **NUNCA** acesse `localStorage` dentro de Workers - mova para contexto principal
 - Mantenha Workers simples e focados em processamento de dados
 - Use `postMessage()` para comunicação bidirecional
+- Para código compartilhado entre contextos, use `shared-utils.js` (compatível com ambos)
+
+### Segurança
+- **SEMPRE** use `InputValidator` para validar entrada de usuário
+- Nunca injete HTML sem sanitização
+- Valide tipos e limites de dados antes de processar
+- `InputValidator` bloqueia: `<script>`, `javascript:`, eventos inline, iframes, etc.
 
 ### Cache e Estado
 - Sempre gerencie cache no contexto principal (`app.js`)
+- Use `CacheCoordinator` para cache unificado entre contextos
 - Use versionamento para invalidar cache quando necessário
 - Monitore o tamanho do localStorage (limite ~5-10MB)
 
