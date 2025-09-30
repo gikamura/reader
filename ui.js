@@ -1,7 +1,7 @@
 import { store } from './store.js';
 import { ITEMS_PER_PAGE } from './constants.js';
 
-// Sistema de fallback inteligente para imagens
+// Sistema de fallback inteligente para imagens com AllOrigins
 window.handleImageError = function(img, originalUrl) {
     // Se já tentou o proxy, vai para placeholder final
     if (img.dataset.proxyAttempted === 'true') {
@@ -30,14 +30,10 @@ window.handleImageError = function(img, originalUrl) {
         console.log(`🔧 Corrigindo extensão: ${originalUrl} → ${validUrl}`);
     }
 
-    // Tentar com proxy wsrv.nl (suporta MyAnimeList e outros CDNs bloqueados)
-    // Detectar tamanho para otimização
-    const width = img.classList.contains('w-12') ? 48 : 256;
-    const height = img.classList.contains('h-16') ? 64 : 384;
+    // Tentar com proxy AllOrigins (suporta MyAnimeList e outros CDNs bloqueados)
+    const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(validUrl)}`;
 
-    const proxiedUrl = `https://wsrv.nl/?url=${encodeURIComponent(validUrl)}&w=${width}&h=${height}&fit=cover&output=webp`;
-
-    console.log(`🔄 Tentando proxy wsrv.nl para: ${validUrl}`);
+    console.log(`🔄 Tentando proxy AllOrigins para: ${validUrl}`);
     img.src = proxiedUrl;
 };
 
