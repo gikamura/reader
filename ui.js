@@ -430,36 +430,34 @@ function renderScanWorks(state) {
     const dom = getDOM();
     const { name, description } = state.selectedScan.scan_info;
 
-    // Prepara o layout inicial com cabeçalho e busca
-    dom.scansContent.innerHTML = `
-        <div class="mb-6">
-            <button id="back-to-scans-btn" class="text-blue-400 hover:text-blue-300 mb-4">&larr; Voltar para a lista de Scans</button>
-            <h2 class="text-3xl font-bold text-white">${name}</h2>
-            <p class="text-gray-400 mt-1">${description}</p>
-        </div>
-        <div class="mb-6">
-            <div class="relative">
-                <label for="scan-search-input" class="sr-only">Buscar obras nesta scan</label>
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </div>
-                <input type="search" id="scan-search-input" placeholder="Buscar nesta scan..." class="w-full bg-neutral-800 text-gray-200 border border-neutral-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+    // Verificar se precisa criar o layout inicial (só na primeira vez)
+    let grid = document.getElementById('scan-works-grid');
+    if (!grid) {
+        // Prepara o layout inicial com cabeçalho e busca (só cria uma vez)
+        dom.scansContent.innerHTML = `
+            <div class="mb-6">
+                <button id="back-to-scans-btn" class="text-blue-400 hover:text-blue-300 mb-4">&larr; Voltar para a lista de Scans</button>
+                <h2 class="text-3xl font-bold text-white">${name}</h2>
+                <p class="text-gray-400 mt-1">${description}</p>
             </div>
-        </div>
-        <div id="scan-works-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        <div id="scan-pagination-controls" class="flex justify-center items-center mt-8 space-x-2"></div>
-    `;
-
-    const grid = document.getElementById('scan-works-grid');
-    const paginationContainer = document.getElementById('scan-pagination-controls');
-    const searchInput = document.getElementById('scan-search-input');
-
-    // Atualizar valor do campo de busca
-    if (searchInput) {
-        searchInput.value = state.scanSearchQuery;
+            <div class="mb-6">
+                <div class="relative">
+                    <label for="scan-search-input" class="sr-only">Buscar obras nesta scan</label>
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="search" id="scan-search-input" placeholder="Buscar nesta scan..." value="${state.scanSearchQuery}" class="w-full bg-neutral-800 text-gray-200 border border-neutral-700 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+            </div>
+            <div id="scan-works-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            <div id="scan-pagination-controls" class="flex justify-center items-center mt-8 space-x-2"></div>
+        `;
+        grid = document.getElementById('scan-works-grid');
     }
+
+    const paginationContainer = document.getElementById('scan-pagination-controls');
 
     if (state.isLoadingScans && state.scanWorks.length === 0) {
         grid.innerHTML = `<div class="col-span-full flex justify-center items-center py-16"><div class="loader"></div><p class="ml-4">Carregando obras...</p></div>`;
