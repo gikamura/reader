@@ -1,7 +1,8 @@
 import './cache-coordinator.js';
 
 const DB_NAME = 'gikamuraDB';
-const DB_VERSION = 2; // Incrementado para adicionar novas stores de scans
+const DB_VERSION = 3; // Incrementado para forçar atualização do cache de scans com status corrigido
+const SCAN_WORKS_CACHE_VERSION = 2; // Versão do cache de obras de scans (incrementar para invalidar cache)
 
 const MANGA_STORE = 'mangaCatalog';
 const FAVORITES_STORE = 'favorites';
@@ -272,7 +273,7 @@ export const saveScanWorksToCache = async (scanUrl, works) => {
         await initDB();
         const transaction = db.transaction(SCAN_WORKS_STORE, "readwrite");
         const store = transaction.objectStore(SCAN_WORKS_STORE);
-        store.put({ scanUrl, works, timestamp: Date.now() });
+        store.put({ scanUrl, works, timestamp: Date.now(), version: SCAN_WORKS_CACHE_VERSION });
         return new Promise((resolve, reject) => {
             transaction.oncomplete = () => resolve();
             transaction.onerror = (event) => reject(event.target.error);
@@ -291,7 +292,13 @@ export const loadScanWorksFromCache = async (scanUrl) => {
         return new Promise((resolve) => {
             request.onsuccess = () => {
                 const cached = request.result;
-                resolve(cached && cached.works ? cached.works : []);
+                // Validar versão do cache - invalidar se for versão antiga
+                if (cached && cached.version === SCAN_WORKS_CACHE_VERSION && cached.works) {
+                    resolve(cached.works);
+                } else {
+                    console.log(`🔄 Cache de scan inválido ou desatualizado (v${cached?.version || 0} vs v${SCAN_WORKS_CACHE_VERSION}), ignorando`);
+                    resolve([]);
+                }
             };
             request.onerror = () => resolve([]);
         });
