@@ -36,6 +36,7 @@ export function getInitialState() {
         isLoadingScans: true,
         scanWorks: [], // Armazenará os detalhes completos das obras da scan selecionada
         scanWorksCurrentPage: 1, // Paginação para as obras da scan
+        scanSearchQuery: '', // Busca dentro das obras de uma scan
     };
 }
 

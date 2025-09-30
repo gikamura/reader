@@ -115,6 +115,12 @@ export const store = {
         state.scanWorksCurrentPage = page;
         notify();
     },
+
+    setScanSearchQuery: (query) => {
+        state.scanSearchQuery = query;
+        state.scanWorksCurrentPage = 1; // Resetar paginação ao buscar
+        notify();
+    },
 };
 
 export async function fetchAndDisplayScanWorks(scanUrl) {
@@ -122,6 +128,7 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
     store.setScanWorks([]);
     store.setSelectedScan(null);
     store.setScanWorksCurrentPage(1);
+    store.setScanSearchQuery(''); // Limpar busca ao trocar de scan
     store.setLoadingScans(true);
 
     try {

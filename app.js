@@ -236,6 +236,19 @@ function setupEventListeners() {
         }
     });
 
+    // NOVO: Event listener para busca nas scans (delegado no scansContent)
+    dom.scansContent.addEventListener('input', (e) => {
+        if (e.target.id === 'scan-search-input') {
+            const query = e.target.value;
+            store.setScanSearchQuery(query);
+
+            // Analytics: track scan search
+            if (query.length >= 2) {
+                analytics?.trackSearch(query, 0, 'scan_search');
+            }
+        }
+    });
+
     // Sistema de busca será configurado após carregamento dos dados
     // Nota: removido o event listener direto para evitar conflitos
 
