@@ -1,4 +1,4 @@
-import { saveFavoritesToCache, loadFavoritesFromCache, saveSettingsToCache, loadSettingsFromCache, saveUpdatesToCache, loadUpdatesFromCache } from './cache.js';
+import { saveFavoritesToCache, loadFavoritesFromCache, saveSettingsToCache, loadSettingsFromCache, saveUpdatesToCache, loadUpdatesFromCache, saveScansListToCache, loadScansListFromCache, saveScanWorksToCache, loadScanWorksFromCache } from './cache.js';
 import { getInitialState } from './constants.js';
 
 let state = getInitialState();
@@ -118,17 +118,33 @@ export const store = {
 };
 
 export async function fetchAndDisplayScanWorks(scanUrl) {
-    store.setLoadingScans(true);
+    // CRITICAL: Limpar COMPLETAMENTE o estado anterior antes de começar
     store.setScanWorks([]);
+    store.setSelectedScan(null);
     store.setScanWorksCurrentPage(1);
+    store.setLoadingScans(true);
 
     try {
+        // Etapa 0: Tentar carregar do cache primeiro
+        const cachedWorks = await loadScanWorksFromCache(scanUrl);
+        if (cachedWorks && cachedWorks.length > 0) {
+            console.log(`✅ ${cachedWorks.length} obras carregadas do cache`);
+            store.setScanWorks(cachedWorks);
+            // Continuar buscando dados frescos em background para atualizar
+        }
+
         // Etapa 1: Buscar os dados da scan (Nível 2)
         const { fetchWithTimeout, processMangaUrl, getWorkType } = window.SharedUtils;
         const response = await fetchWithTimeout(scanUrl);
         if (!response.ok) throw new Error(`Falha ao buscar dados da scan: ${response.statusText}`);
-        
+
         const scan = await response.json();
+
+        // Validar que a scan tem obras
+        if (!scan.works || Object.keys(scan.works).length === 0) {
+            throw new Error('Esta scan não possui obras disponíveis');
+        }
+
         store.setSelectedScan(scan); // Guarda a informação básica da scan
 
         // Etapa 2: Buscar os detalhes de todas as obras (Nível 3)
@@ -151,20 +167,25 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
 
                 const detailedWork = await processMangaUrl(cubariUrl, preFetchedData);
                 if (!detailedWork || detailedWork.error) return null;
-                
+
                 detailedWork.type = getWorkType(key, detailedWork);
                 return detailedWork;
             });
 
             const detailedWorksBatch = (await Promise.all(fetchPromises)).filter(Boolean);
             allDetailedWorks = [...allDetailedWorks, ...detailedWorksBatch];
-            
+
             store.setScanWorks(allDetailedWorks);
 
             if (i + BATCH_SIZE < works.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
             }
         }
+
+        // Etapa 3: Salvar no cache para próxima vez
+        await saveScanWorksToCache(scanUrl, allDetailedWorks);
+        console.log(`💾 ${allDetailedWorks.length} obras salvas no cache`);
+
     } catch (error) {
         console.error("Erro geral ao buscar obras da scan:", error);
         store.setError("Falha ao carregar as obras desta scan.");

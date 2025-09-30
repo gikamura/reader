@@ -1,6 +1,6 @@
 import { initializeStore, store, fetchAndDisplayScanWorks } from './store.js';
 import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup, loadingManager } from './ui.js';
-import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion } from './cache.js';
+import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion, saveScansListToCache, loadScansListFromCache } from './cache.js';
 
 import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { errorNotificationManager } from './error-handler.js';
@@ -424,30 +424,46 @@ async function findNewChapterUpdates(oldManga, newManga) {
 
 // NOVO: Função para buscar o índice de scans
 async function fetchScansIndex() {
-    // ADICIONAR ESTA LINHA: Para obter a função da maneira correta
     const { fetchWithTimeout } = window.SharedUtils;
 
     try {
+        // Etapa 0: Tentar carregar do cache primeiro
+        const cachedScans = await loadScansListFromCache();
+        if (cachedScans && cachedScans.length > 0) {
+            console.log(`✅ ${cachedScans.length} scans carregadas do cache`);
+            store.setScansList(cachedScans);
+            // Continuar buscando dados frescos em background
+        }
+
+        // Etapa 1: Buscar índice fresco
         const response = await fetchWithTimeout(SCANS_INDEX_URL);
         const index = await response.json();
 
-        // O índice principal contém as scans como chaves de um objeto
-        // Vamos transformá-lo em um array e buscar as informações básicas de cada uma
+        // Etapa 2: Buscar informações de cada scan
         const scanPromises = Object.values(index).map(async (scanUrl) => {
             const scanResponse = await fetchWithTimeout(scanUrl);
             const scanData = await scanResponse.json();
             return {
                 scan_info: scanData.scan_info,
-                url: scanUrl // Adicionamos a URL para buscar o conteúdo completo depois
+                url: scanUrl
             };
         });
-        
+
         const scansList = await Promise.all(scanPromises);
+
+        // Etapa 3: Atualizar store e salvar no cache
         store.setScansList(scansList);
+        await saveScansListToCache(scansList);
+        console.log(`💾 ${scansList.length} scans salvas no cache`);
 
     } catch (error) {
         console.error('Falha ao buscar índice de scans:', error);
-        store.setScansList([]); // Define como vazio em caso de erro
+
+        // Se falhar e não tem cache, define vazio
+        const cachedScans = await loadScansListFromCache();
+        if (!cachedScans || cachedScans.length === 0) {
+            store.setScansList([]);
+        }
     }
 }
 

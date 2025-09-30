@@ -1,13 +1,15 @@
 import './cache-coordinator.js';
 
 const DB_NAME = 'gikamuraDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incrementado para adicionar novas stores de scans
 
 const MANGA_STORE = 'mangaCatalog';
 const FAVORITES_STORE = 'favorites';
 const UPDATES_STORE = 'updates';
 const SETTINGS_STORE = 'settings';
 const METADATA_STORE = 'metadata';
+const SCANS_LIST_STORE = 'scansList';
+const SCAN_WORKS_STORE = 'scanWorks';
 
 let db;
 let cacheCoordinator;
@@ -45,6 +47,14 @@ const initDB = () => {
             }
             if (!dbInstance.objectStoreNames.contains(METADATA_STORE)) {
                 dbInstance.createObjectStore(METADATA_STORE, { keyPath: 'key' });
+            }
+            // Novas stores para Scans
+            if (!dbInstance.objectStoreNames.contains(SCANS_LIST_STORE)) {
+                dbInstance.createObjectStore(SCANS_LIST_STORE, { keyPath: 'url' });
+            }
+            if (!dbInstance.objectStoreNames.contains(SCAN_WORKS_STORE)) {
+                const scanWorksStore = dbInstance.createObjectStore(SCAN_WORKS_STORE, { keyPath: 'scanUrl' });
+                scanWorksStore.createIndex('timestamp', 'timestamp', { unique: false });
             }
         };
     });
@@ -213,4 +223,79 @@ export const saveUpdatesToCache = async (updatesArray) => {
         transaction.oncomplete = () => resolve();
         transaction.onerror = (event) => reject(event.target.error);
     });
+};
+
+// ============================================
+// NOVAS FUNÇÕES PARA CACHE DE SCANS
+// ============================================
+
+/**
+ * Salva a lista de scans no IndexedDB
+ */
+export const saveScansListToCache = async (scansList) => {
+    try {
+        await initDB();
+        const transaction = db.transaction(SCANS_LIST_STORE, "readwrite");
+        const store = transaction.objectStore(SCANS_LIST_STORE);
+        store.clear();
+        scansList.forEach(scan => {
+            if (scan && scan.url) {
+                store.add({ ...scan, timestamp: Date.now() });
+            }
+        });
+        return new Promise((resolve, reject) => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (event) => reject(event.target.error);
+        });
+    } catch (error) {
+        console.error("Erro ao salvar scans no cache:", error);
+    }
+};
+
+export const loadScansListFromCache = async () => {
+    try {
+        await initDB();
+        const transaction = db.transaction(SCANS_LIST_STORE, "readonly");
+        const store = transaction.objectStore(SCANS_LIST_STORE);
+        const request = store.getAll();
+        return new Promise((resolve) => {
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => resolve([]);
+        });
+    } catch (error) {
+        return [];
+    }
+};
+
+export const saveScanWorksToCache = async (scanUrl, works) => {
+    try {
+        await initDB();
+        const transaction = db.transaction(SCAN_WORKS_STORE, "readwrite");
+        const store = transaction.objectStore(SCAN_WORKS_STORE);
+        store.put({ scanUrl, works, timestamp: Date.now() });
+        return new Promise((resolve, reject) => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (event) => reject(event.target.error);
+        });
+    } catch (error) {
+        console.error("Erro ao salvar obras da scan no cache:", error);
+    }
+};
+
+export const loadScanWorksFromCache = async (scanUrl) => {
+    try {
+        await initDB();
+        const transaction = db.transaction(SCAN_WORKS_STORE, "readonly");
+        const store = transaction.objectStore(SCAN_WORKS_STORE);
+        const request = store.get(scanUrl);
+        return new Promise((resolve) => {
+            request.onsuccess = () => {
+                const cached = request.result;
+                resolve(cached && cached.works ? cached.works : []);
+            };
+            request.onerror = () => resolve([]);
+        });
+    } catch (error) {
+        return [];
+    }
 };
