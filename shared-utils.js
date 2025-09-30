@@ -159,6 +159,14 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
 
         let decodedPath = b64DecodeUnicode(b64);
 
+        // FIX: Decodifica completamente o caminho para evitar dupla codificação
+        try {
+            decodedPath = decodeURIComponent(decodedPath);
+        } catch (e) {
+            // Ignora o erro, o caminho pode já estar decodificado
+            console.warn('Falha ao decodificar o caminho, continuando...', e);
+        }
+
         if (decodedPath.startsWith('raw/')) decodedPath = decodedPath.substring(4);
 
         const pathSegments = decodedPath.split('/');
