@@ -1,24 +1,6 @@
 # Gikamura
 
-
-
 **[https://gikamura.github.io/reader/](https://gikamura.github.io/reader/)**
-
-## About This Project
-
-Este repositório contém o código-fonte / documentação / rastreador de problemas do site Gikamura.
-
-## ✨ Features
-
-* Feature 1
-* Feature 2
-* Feature 3
-
-## 🛠️ Tech Stack
-
-* **Frontend:** (ex: React, Vue, HTML/CSS)
-* **Backend:** (ex: Node.js, Python, PHP)
-* **Database:** (ex: MongoDB, PostgreSQL)
 
 ---
 
