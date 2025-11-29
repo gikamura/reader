@@ -99,10 +99,15 @@
             header h1 { font-size: 2rem; }
             header p { font-size: 0.875rem; }
 
-            /* Tabs mobile */
+            /* Tabs mobile - wrap para 2 linhas se necessário */
+            #tabs {
+                flex-wrap: wrap;
+                gap: 0.25rem;
+            }
+
             .tab {
                 padding: 0.5rem 0.75rem;
-                font-size: 0.875rem;
+                font-size: 0.8rem;
             }
 
             /* Search mobile */
@@ -116,16 +121,36 @@
             #library-controls {
                 padding-top: 0.75rem;
                 margin-top: 0.75rem;
+            }
+
+            #library-controls > .flex {
+                flex-direction: column;
                 gap: 0.75rem;
+            }
+
+            #type-filter-container,
+            #status-filter-container {
+                width: 100%;
+            }
+
+            #type-filter-container .flex,
+            #status-filter-container .flex {
+                flex-wrap: wrap;
+                gap: 0.25rem;
             }
 
             .filter-btn {
                 padding: 0.375rem 0.75rem;
-                font-size: 0.875rem;
+                font-size: 0.8rem;
+            }
+
+            #sort-container {
+                margin-left: 0 !important;
+                width: 100%;
             }
 
             /* Navigation container mobile */
-            .bg-\\[\\#1a1a1a\\]\\/80 .flex {
+            .bg-\[\#1a1a1a\]\/80 .flex {
                 flex-direction: column;
                 gap: 0.75rem;
                 align-items: stretch;
@@ -141,15 +166,20 @@
                 flex-direction: column;
             }
 
-            .card-container .w-1\\/3 {
+            .card-container .w-1\/3 {
                 width: 100%;
                 height: 8rem;
                 flex-shrink: 0;
             }
 
-            .card-container .w-2\\/3 {
+            .card-container .w-2\/3 {
                 width: 100%;
                 padding: 0.75rem;
+            }
+
+            /* Updates list mobile */
+            #updates-list a {
+                flex-wrap: wrap;
             }
         }
 
@@ -164,57 +194,118 @@
             header { margin-bottom: 1rem; }
             header h1 { font-size: 1.75rem; }
 
-            /* Tabs ultra mobile */
-            .tab {
-                padding: 0.375rem 0.5rem;
-                font-size: 0.75rem;
-                min-width: 0;
-                flex: 1;
-                text-align: center;
+            /* Navigation container mobile - full width */
+            .bg-\[\#1a1a1a\]\/80 {
+                padding: 0.75rem !important;
+                margin: 0 -0.5rem;
+                width: calc(100% + 1rem);
+                border-radius: 0 !important;
             }
 
-            /* Navigation ultra mobile */
+            .bg-\[\#1a1a1a\]\/80 > .flex {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            /* Tabs ultra mobile - grid layout para ocupar espaço */
             #tabs {
                 width: 100%;
-                overflow-x: auto;
-                scrollbar-width: none;
-                -ms-overflow-style: none;
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.25rem;
+                padding: 0.25rem;
             }
 
-            #tabs::-webkit-scrollbar {
-                display: none;
-            }
-
-            /* Filters ultra mobile */
-            .filter-btn {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.75rem;
-                flex: 1;
+            .tab {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.7rem;
                 min-width: 0;
+                text-align: center;
+                white-space: nowrap;
+                justify-content: center;
+            }
+
+            /* Badge position fix for mobile */
+            .tab[data-tab="updates"] {
+                position: relative;
+            }
+
+            #updates-badge {
+                top: -0.25rem;
+                right: -0.25rem;
+                font-size: 0.6rem;
+                min-width: 1rem;
+                height: 1rem;
+                padding: 0 0.25rem;
+            }
+
+            /* Search full width */
+            #search-container {
+                width: 100% !important;
+                margin-top: 0;
+            }
+
+            #search-input {
+                width: 100% !important;
+            }
+
+            /* Filters ultra mobile - stack vertical */
+            #library-controls {
+                padding-top: 0.75rem !important;
+                margin-top: 0.75rem !important;
+            }
+
+            #library-controls > .flex {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            #type-filter-container,
+            #status-filter-container {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 0.5rem;
+                width: 100%;
+            }
+
+            #type-filter-container > span,
+            #status-filter-container > span {
+                font-size: 0.75rem;
             }
 
             #type-filter-container .flex,
             #status-filter-container .flex {
                 width: 100%;
-                overflow-x: auto;
-                scrollbar-width: none;
-                -ms-overflow-style: none;
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.25rem;
+                padding: 0.25rem;
             }
 
-            #type-filter-container .flex::-webkit-scrollbar,
-            #status-filter-container .flex::-webkit-scrollbar {
-                display: none;
+            .filter-btn {
+                padding: 0.375rem 0.25rem;
+                font-size: 0.7rem;
+                text-align: center;
+                min-width: 0;
             }
 
             /* Sort ultra mobile */
             #sort-container {
                 margin-left: 0 !important;
                 width: 100%;
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 0.5rem;
+            }
+
+            #sort-container > span {
+                font-size: 0.75rem;
             }
 
             #sort-select {
                 width: 100%;
                 font-size: 0.875rem;
+                padding: 0.5rem;
             }
 
             /* Pagination ultra mobile */
@@ -226,21 +317,47 @@
 
             /* Updates ultra mobile */
             .notification-popup {
-                width: calc(100vw - 2rem) !important;
+                width: calc(100vw - 1rem) !important;
                 max-width: none !important;
-                left: 1rem !important;
-                right: 1rem !important;
+                left: 0.5rem !important;
+                right: 0.5rem !important;
             }
 
             /* Update items ultra mobile */
             #updates-list a {
                 padding: 0.75rem;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            #updates-list a > .relative {
+                margin-bottom: 0.75rem;
+                margin-right: 0;
             }
 
             #updates-list img {
-                width: 2.5rem;
-                height: 3.5rem;
-                margin-right: 0.75rem;
+                width: 3.5rem;
+                height: 5rem;
+            }
+
+            /* Updates config cards */
+            #updates-content .bg-\[\#1a1a1a\] {
+                padding: 0.75rem;
+            }
+
+            #updates-content label {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 0.75rem;
+            }
+
+            #updates-content label > div:first-child {
+                width: 100%;
+            }
+
+            /* Scans list mobile */
+            #scans-list a {
+                padding: 0.75rem;
             }
         }
 
