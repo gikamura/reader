@@ -37,7 +37,7 @@ export async function fetchAndProcessMangaData(updateStatus, onBatchProcessed) {
         const allMangaSeries = Object.entries(indexData.mangas);
 
         // Usar função compartilhada com configurações otimizadas
-        const allMangaResults = await processInBatches(allMangaSeries, 100, 1000, onBatchProcessed);
+        const allMangaResults = await processInBatches(allMangaSeries, 200, 300, onBatchProcessed);
 
         const allManga = allMangaResults.filter(m => m && !m.error);
         const failedCount = allMangaResults.length - allManga.length;

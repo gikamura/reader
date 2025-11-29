@@ -227,16 +227,50 @@ function removePopup(popupElement, popupNode) {
     }, { once: true });
 }
 
-// Pop-up consolidado
+// Pop-up consolidado com informações de tipo
 function createGroupedPopupHTML(count, updates) {
-    const message = count === 1
-        ? `Novo capítulo em <strong>${updates[0].manga.title}</strong>.`
-        : `${count} obras foram atualizadas.`;
-     return `
-    <a href="#" data-tab-target="updates" class="notification-popup notification-grouped flex items-center w-80 max-w-sm bg-[#1a1a1a] border border-neutral-700 rounded-lg shadow-2xl overflow-hidden cursor-pointer">
-        <div class="p-4 overflow-hidden">
-            <h4 class="font-bold text-white">Novas Atualizações</h4>
-            <p class="text-sm text-gray-300">${message} Clique para ver.</p>
+    const newWorks = updates.filter(u => u.type === 'new_work');
+    const newChapters = updates.filter(u => u.type === 'new_chapters' || !u.type);
+    
+    let message = '';
+    let icon = '';
+    
+    if (newWorks.length > 0 && newChapters.length > 0) {
+        message = `<strong>${newWorks.length}</strong> nova(s) obra(s) e <strong>${newChapters.length}</strong> capítulo(s) novo(s)`;
+        icon = `<div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-600 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+        </div>`;
+    } else if (newWorks.length > 0) {
+        message = newWorks.length === 1 
+            ? `Nova obra: <strong>${newWorks[0].manga.title}</strong>`
+            : `<strong>${newWorks.length}</strong> novas obras adicionadas`;
+        icon = `<div class="flex-shrink-0 w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mr-3">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+        </div>`;
+    } else {
+        message = newChapters.length === 1
+            ? `Novo capítulo em <strong>${newChapters[0].manga.title}</strong>`
+            : `<strong>${newChapters.length}</strong> obras com novos capítulos`;
+        icon = `<div class="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+        </div>`;
+    }
+    
+    return `
+    <a href="#" data-tab-target="updates" class="notification-popup notification-grouped flex items-center w-96 max-w-md bg-[#1a1a1a] border border-neutral-700 rounded-xl shadow-2xl overflow-hidden cursor-pointer hover:bg-neutral-800 transition-colors">
+        <div class="p-4 flex items-center w-full">
+            ${icon}
+            <div class="overflow-hidden flex-grow">
+                <h4 class="font-bold text-white text-sm">Novas Atualizações</h4>
+                <p class="text-sm text-gray-300 truncate">${message}</p>
+                <p class="text-xs text-blue-400 mt-1">Clique para ver detalhes →</p>
+            </div>
         </div>
     </a>`;
 }
@@ -250,20 +284,60 @@ export function showConsolidatedUpdatePopup(updates) {
 }
 
 function createUpdateHistoryItemHTML(update) {
-    const { manga, newChapters, read } = update;
+    const { manga, newChapters, read, type } = update;
     const updateTime = new Date(update.timestamp).toLocaleString('pt-BR');
-    const chapterText = newChapters.map(c => c.title).join(', ');
-    const unreadClass = read === false ? 'bg-blue-900/40 border-blue-700/60' : 'bg-[#050505]/50 border-neutral-800/60';
     const escapedTitle = manga.title ? manga.title.replace(/"/g, '&quot;') : '';
+    const unreadClass = read === false ? 'border-l-4 border-l-blue-500 bg-blue-900/20' : 'border-l-4 border-l-transparent bg-[#050505]/50';
+    
+    // Ícones para tipos de atualização
+    const iconNewWork = `<svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`;
+    const iconNewChapter = `<svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`;
+    
+    const isNewWork = type === 'new_work';
+    const icon = isNewWork ? iconNewWork : iconNewChapter;
+    const badgeClass = isNewWork ? 'bg-green-600' : 'bg-blue-600';
+    const badgeText = isNewWork ? 'Nova Obra' : `${newChapters.length} cap.`;
+    
+    // Texto descritivo
+    let descriptionText = '';
+    if (isNewWork) {
+        descriptionText = manga.description 
+            ? manga.description.substring(0, 100) + (manga.description.length > 100 ? '...' : '')
+            : 'Nova obra adicionada ao catálogo';
+    } else {
+        const chapterText = newChapters.slice(0, 3).map(c => c.title).join(', ');
+        const moreText = newChapters.length > 3 ? ` +${newChapters.length - 3} mais` : '';
+        descriptionText = chapterText + moreText;
+    }
 
     return `
-    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" class="flex items-center p-3 rounded-lg hover:bg-neutral-800 transition-colors border ${unreadClass}">
-        <img src="${manga.imageUrl}" alt="Capa de ${escapedTitle}" class="w-12 h-16 object-cover rounded-md mr-4 flex-shrink-0" loading="lazy" onerror="handleImageError(this, '${manga.imageUrl.replace(/'/g, "\\'")}')">
-        <div class="overflow-hidden">
-            <p class="font-semibold text-white truncate">${manga.title}</p>
-            <p class="text-sm text-gray-400 truncate">Novos capítulos: ${chapterText}</p>
-            <p class="text-xs text-gray-500 mt-1">${updateTime}</p>
+    <a href="${manga.url}" target="_blank" rel="noopener noreferrer" 
+       class="flex items-start p-4 rounded-lg hover:bg-neutral-800/80 transition-all ${unreadClass} border border-neutral-800/60">
+        <div class="relative flex-shrink-0 mr-4">
+            <img src="${manga.imageUrl}" alt="Capa de ${escapedTitle}" 
+                 class="w-16 h-24 object-cover rounded-md shadow-md" loading="lazy" 
+                 onerror="handleImageError(this, '${manga.imageUrl.replace(/'/g, "\\'")}')">
+            <span class="absolute -top-2 -right-2 ${badgeClass} text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+                ${badgeText}
+            </span>
         </div>
+        <div class="flex-grow overflow-hidden">
+            <div class="flex items-center gap-2 mb-1">
+                ${icon}
+                <h3 class="font-bold text-white truncate">${manga.title}</h3>
+            </div>
+            <p class="text-sm text-gray-400 line-clamp-2 mb-2">${descriptionText}</p>
+            <div class="flex items-center gap-3 text-xs text-gray-500">
+                <span class="flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    ${updateTime}
+                </span>
+                ${manga.type ? `<span class="bg-neutral-700 px-2 py-0.5 rounded">${manga.type}</span>` : ''}
+            </div>
+        </div>
+        ${read === false ? '<span class="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 ml-2 animate-pulse"></span>' : ''}
     </a>`;
 }
 
@@ -277,9 +351,77 @@ function renderUpdatesTab(state) {
     dom.markAllAsReadBtn.classList.toggle('hidden', state.unreadUpdates === 0);
 
     if (state.updates.length === 0) {
-        dom.updatesList.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhuma atualização recente.</p>`;
+        dom.updatesList.innerHTML = `
+            <div class="text-center py-12">
+                <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                <p class="text-gray-500 text-lg">Nenhuma atualização recente</p>
+                <p class="text-gray-600 text-sm mt-2">Novas obras e capítulos aparecerão aqui</p>
+            </div>`;
     } else {
-        dom.updatesList.innerHTML = state.updates.map(createUpdateHistoryItemHTML).join('');
+        // Separar por tipo de atualização
+        const newWorks = state.updates.filter(u => u.type === 'new_work');
+        const newChapters = state.updates.filter(u => u.type === 'new_chapters' || !u.type);
+        
+        let html = '';
+        
+        // Resumo no topo
+        if (state.unreadUpdates > 0) {
+            html += `
+            <div class="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4 mb-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-600 p-2 rounded-full">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold">${state.unreadUpdates} ${state.unreadUpdates === 1 ? 'nova atualização' : 'novas atualizações'}</p>
+                            <p class="text-blue-300 text-sm">
+                                ${newWorks.filter(u => !u.read).length} obras novas • 
+                                ${newChapters.filter(u => !u.read).length} capítulos novos
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        // Seção de novas obras
+        if (newWorks.length > 0) {
+            html += `
+            <div class="mb-6">
+                <h3 class="flex items-center gap-2 text-lg font-bold text-green-400 mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Novas Obras (${newWorks.length})
+                </h3>
+                <div class="space-y-3">
+                    ${newWorks.map(createUpdateHistoryItemHTML).join('')}
+                </div>
+            </div>`;
+        }
+        
+        // Seção de novos capítulos
+        if (newChapters.length > 0) {
+            html += `
+            <div>
+                <h3 class="flex items-center gap-2 text-lg font-bold text-blue-400 mb-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Novos Capítulos (${newChapters.length})
+                </h3>
+                <div class="space-y-3">
+                    ${newChapters.map(createUpdateHistoryItemHTML).join('')}
+                </div>
+            </div>`;
+        }
+        
+        dom.updatesList.innerHTML = html;
     }
 }
 
@@ -590,3 +732,104 @@ export function renderApp() {
       }
     }
 }
+
+// =====================================================
+// FAVICON BADGE - Mostra número de atualizações não lidas
+// =====================================================
+let originalFavicon = null;
+let faviconCanvas = null;
+let faviconCtx = null;
+
+export function updateFaviconBadge(count) {
+    // Guardar favicon original na primeira vez
+    if (!originalFavicon) {
+        const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+        originalFavicon = link.href || '/icons/icon-192.png';
+    }
+    
+    // Se count é 0, restaurar favicon original
+    if (count <= 0) {
+        restoreOriginalFavicon();
+        return;
+    }
+    
+    // Criar canvas se não existir
+    if (!faviconCanvas) {
+        faviconCanvas = document.createElement('canvas');
+        faviconCanvas.width = 32;
+        faviconCanvas.height = 32;
+        faviconCtx = faviconCanvas.getContext('2d');
+    }
+    
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+        // Desenhar ícone original
+        faviconCtx.clearRect(0, 0, 32, 32);
+        faviconCtx.drawImage(img, 0, 0, 32, 32);
+        
+        // Desenhar badge
+        const badgeText = count > 99 ? '99+' : count.toString();
+        const badgeSize = badgeText.length > 2 ? 20 : 16;
+        
+        // Círculo vermelho
+        faviconCtx.beginPath();
+        faviconCtx.arc(32 - badgeSize/2, badgeSize/2, badgeSize/2, 0, 2 * Math.PI);
+        faviconCtx.fillStyle = '#ef4444';
+        faviconCtx.fill();
+        
+        // Texto branco
+        faviconCtx.fillStyle = '#ffffff';
+        faviconCtx.font = `bold ${badgeSize - 6}px Arial`;
+        faviconCtx.textAlign = 'center';
+        faviconCtx.textBaseline = 'middle';
+        faviconCtx.fillText(badgeText, 32 - badgeSize/2, badgeSize/2 + 1);
+        
+        // Atualizar favicon
+        setFavicon(faviconCanvas.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+        // Se falhar ao carregar imagem, criar badge simples
+        faviconCtx.clearRect(0, 0, 32, 32);
+        faviconCtx.fillStyle = '#3b82f6';
+        faviconCtx.fillRect(0, 0, 32, 32);
+        
+        faviconCtx.beginPath();
+        faviconCtx.arc(24, 8, 8, 0, 2 * Math.PI);
+        faviconCtx.fillStyle = '#ef4444';
+        faviconCtx.fill();
+        
+        faviconCtx.fillStyle = '#ffffff';
+        faviconCtx.font = 'bold 10px Arial';
+        faviconCtx.textAlign = 'center';
+        faviconCtx.textBaseline = 'middle';
+        faviconCtx.fillText(count > 9 ? '9+' : count.toString(), 24, 9);
+        
+        setFavicon(faviconCanvas.toDataURL('image/png'));
+    };
+    img.src = originalFavicon;
+}
+
+function setFavicon(url) {
+    let link = document.querySelector("link[rel*='icon']");
+    if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+    }
+    link.href = url;
+}
+
+function restoreOriginalFavicon() {
+    if (originalFavicon) {
+        setFavicon(originalFavicon);
+    }
+}
+
+// Resetar badge quando usuário vê as atualizações
+store.subscribe(() => {
+    const state = store.getState();
+    if (state.activeTab === 'updates' && state.unreadUpdates === 0) {
+        restoreOriginalFavicon();
+    }
+});

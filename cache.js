@@ -2,7 +2,7 @@ import './cache-coordinator.js';
 
 const DB_NAME = 'gikamuraDB';
 const DB_VERSION = 3; // Incrementado para forçar atualização do cache de scans com status corrigido
-const SCAN_WORKS_CACHE_VERSION = 2; // Versão do cache de obras de scans (incrementar para invalidar cache)
+// Versão do cache de scans agora é dinâmica (vem do scan_info.version)
 
 const MANGA_STORE = 'mangaCatalog';
 const FAVORITES_STORE = 'favorites';
@@ -79,7 +79,10 @@ export const getMangaCache = async () => {
     return new Promise((resolve, reject) => {
         const store = getStore(MANGA_STORE, 'readonly');
         const request = store.getAll();
-        request.onsuccess = () => resolve(request.result.length > 0 ? request.result : null);
+        request.onsuccess = () => {
+            const result = request.result;
+            resolve(result.length > 0 ? result : null);
+        };
         request.onerror = (event) => {
             console.error("Erro ao buscar cache de mangás:", event.target.error);
             reject(null);
@@ -158,6 +161,9 @@ export const getMangaCacheVersion = () => getMetadata('cacheVersion');
 export const setMangaCacheVersion = (version) => setMetadata('cacheVersion', version);
 export const getLastCheckTimestamp = () => getMetadata('lastCheckTimestamp');
 export const setLastCheckTimestamp = (timestamp) => setMetadata('lastCheckTimestamp', timestamp);
+
+// Exportar getMetadata e setMetadata para uso direto
+export { getMetadata, setMetadata };
 
 export const loadSettingsFromCache = async () => {
     await initDB();
@@ -268,12 +274,17 @@ export const loadScansListFromCache = async () => {
     }
 };
 
-export const saveScanWorksToCache = async (scanUrl, works) => {
+export const saveScanWorksToCache = async (scanUrl, works, scanVersion = null) => {
     try {
         await initDB();
         const transaction = db.transaction(SCAN_WORKS_STORE, "readwrite");
         const store = transaction.objectStore(SCAN_WORKS_STORE);
-        store.put({ scanUrl, works, timestamp: Date.now(), version: SCAN_WORKS_CACHE_VERSION });
+        store.put({ 
+            scanUrl, 
+            works, 
+            timestamp: Date.now(), 
+            scanVersion: scanVersion // Versão do scan_info.version
+        });
         return new Promise((resolve, reject) => {
             transaction.oncomplete = () => resolve();
             transaction.onerror = (event) => reject(event.target.error);
@@ -283,7 +294,7 @@ export const saveScanWorksToCache = async (scanUrl, works) => {
     }
 };
 
-export const loadScanWorksFromCache = async (scanUrl) => {
+export const loadScanWorksFromCache = async (scanUrl, expectedVersion = null) => {
     try {
         await initDB();
         const transaction = db.transaction(SCAN_WORKS_STORE, "readonly");
@@ -292,17 +303,23 @@ export const loadScanWorksFromCache = async (scanUrl) => {
         return new Promise((resolve) => {
             request.onsuccess = () => {
                 const cached = request.result;
-                // Validar versão do cache - invalidar se for versão antiga
-                if (cached && cached.version === SCAN_WORKS_CACHE_VERSION && cached.works) {
-                    resolve(cached.works);
-                } else {
-                    console.log(`🔄 Cache de scan inválido ou desatualizado (v${cached?.version || 0} vs v${SCAN_WORKS_CACHE_VERSION}), ignorando`);
-                    resolve([]);
+                if (!cached || !cached.works) {
+                    resolve({ works: [], version: null });
+                    return;
                 }
+                
+                // Se temos versão esperada, validar contra versão do cache
+                if (expectedVersion && cached.scanVersion !== expectedVersion) {
+                    console.log(`🔄 Cache de scan desatualizado (v${cached.scanVersion || 'N/A'} vs v${expectedVersion}), ignorando`);
+                    resolve({ works: [], version: cached.scanVersion });
+                    return;
+                }
+                
+                resolve({ works: cached.works, version: cached.scanVersion });
             };
-            request.onerror = () => resolve([]);
+            request.onerror = () => resolve({ works: [], version: null });
         });
     } catch (error) {
-        return [];
+        return { works: [], version: null };
     }
 };

@@ -3,6 +3,7 @@ export const CACHE_KEY = 'mangaCatalogCache';
 export const CACHE_VERSION_KEY = 'mangaCatalogVersion';
 export const FAVORITES_KEY = 'mangaFavorites';
 export const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 horas
+export const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos - verificação periódica
 export const INDEX_URL = 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json';
 
 // NOVO: URL do índice que lista todas as scans

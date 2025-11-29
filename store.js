@@ -147,45 +147,59 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
 
         store.setSelectedScan(scan); // Guarda a informação básica da scan
 
+        // Obter versão do scan para validação de cache
+        const scanVersion = scan.scan_info?.version || null;
+        const totalWorks = Object.keys(scan.works).length;
+
         // Etapa 1.5: Tentar carregar do cache AGORA (após selectedScan estar definida)
-        const cachedWorks = await loadScanWorksFromCache(scanUrl);
+        // Passar a versão esperada para validação
+        const { works: cachedWorks, version: cachedVersion } = await loadScanWorksFromCache(scanUrl, scanVersion);
+        
         if (cachedWorks && cachedWorks.length > 0) {
-            console.log(`✅ ${cachedWorks.length} obras carregadas do cache`);
+            console.log(`✅ ${cachedWorks.length} obras carregadas do cache (v${cachedVersion})`);
             store.setScanWorks(cachedWorks);
             store.setLoadingScans(false);
 
-            // Se cache está completo (mesmo número de obras), não precisa refetch
-            if (cachedWorks.length === Object.keys(scan.works).length) {
-                console.log(`💾 Cache completo! Não é necessário buscar novamente.`);
+            // Se cache está completo (mesma versão E mesmo número de obras), não precisa refetch
+            if (cachedVersion === scanVersion && cachedWorks.length === totalWorks) {
+                console.log(`💾 Cache completo e atualizado (v${scanVersion})! Não é necessário buscar novamente.`);
                 return;
+            } else if (cachedVersion !== scanVersion) {
+                console.log(`🔄 Nova versão disponível (v${cachedVersion} → v${scanVersion}), atualizando...`);
+                store.setLoadingScans(true);
             } else {
-                console.log(`🔄 Cache parcial (${cachedWorks.length}/${Object.keys(scan.works).length}), buscando obras restantes`);
+                console.log(`🔄 Cache parcial (${cachedWorks.length}/${totalWorks}), buscando obras restantes`);
                 store.setLoadingScans(true);
             }
         }
 
         // Etapa 2: Buscar os detalhes de todas as obras (Nível 3)
         const works = Object.entries(scan.works);
-        const BATCH_SIZE = 100; // Processar 100 obras por lote (igual à biblioteca)
-        const BATCH_DELAY = 1000; // 1 segundo entre lotes
+        const BATCH_SIZE = 200; // Processar 200 obras por lote
+        const BATCH_DELAY = 300; // 0.3 segundo entre lotes
         let allDetailedWorks = [];
 
         for (let i = 0; i < works.length; i += BATCH_SIZE) {
             const batch = works.slice(i, i + BATCH_SIZE);
             const fetchPromises = batch.map(async ([key, work]) => {
-                const cubariUrl = work.chapters[0]?.url;
+                const chapter = work.chapters[0];
+                const cubariUrl = chapter?.url;
                 if (!cubariUrl) return null;
 
+                // Usar type do chapter se disponível, senão inferir pela chave
                 const preFetchedData = {
                     title: work.title,
-                    cover_url: work.chapters[0]?.cover_url || null,
-                    type: getWorkType(key, {})
+                    cover_url: chapter?.cover_url || null,
+                    type: chapter?.type || getWorkType(key, {})
                 };
 
                 const detailedWork = await processMangaUrl(cubariUrl, preFetchedData);
                 if (!detailedWork || detailedWork.error) return null;
 
-                detailedWork.type = getWorkType(key, detailedWork);
+                // Garantir que o type está definido
+                if (!detailedWork.type) {
+                    detailedWork.type = preFetchedData.type;
+                }
                 return detailedWork;
             });
 
@@ -199,9 +213,9 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
             }
         }
 
-        // Etapa 3: Salvar no cache para próxima vez
-        await saveScanWorksToCache(scanUrl, allDetailedWorks);
-        console.log(`💾 ${allDetailedWorks.length} obras salvas no cache`);
+        // Etapa 3: Salvar no cache para próxima vez (incluindo a versão do scan)
+        await saveScanWorksToCache(scanUrl, allDetailedWorks, scanVersion);
+        console.log(`💾 ${allDetailedWorks.length} obras salvas no cache (v${scanVersion})`);
 
     } catch (error) {
         console.error("Erro geral ao buscar obras da scan:", error);

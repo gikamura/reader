@@ -8,8 +8,8 @@ const SHARED_CONFIG = {
     INDEX_URL: 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json',
     DEFAULT_TIMEOUT: 20000,
     WORKER_TIMEOUT: 15000,
-    BATCH_SIZE: 100,
-    BATCH_DELAY: 1000,
+    BATCH_SIZE: 200,
+    BATCH_DELAY: 300,
     MAX_RETRIES: 2
 };
 
@@ -81,22 +81,25 @@ const decodeCubariUrl = (cubariUrl) => {
     }
 };
 
-// NOVO: Determina o tipo da obra, com fallback para a chave
+// Determina o tipo da obra - prioriza o type do JSON, fallback para prefixo da chave
 const getWorkType = (workKey, workData) => {
-    let workType = workData.type;
-    if (!workType) {
-        const keyPrefix = workKey.substring(2, 4);
-        switch (keyPrefix) {
-            case 'kr': workType = 'manhwa'; break;
-            case 'jp': workType = 'manga'; break;
-            case 'ch': workType = 'manhua'; break;
-            case 'ons': workType = 'oneshot'; break;
-            default: workType = 'N/A';
+    // Se já tem type definido nos dados, usar diretamente
+    if (workData.type) {
+        return workData.type;
+    }
+    
+    // Fallback: inferir pelo prefixo da chave (ex: KR1017, JP608, CH115)
+    if (workKey) {
+        const prefix = workKey.substring(0, 2).toUpperCase();
+        switch (prefix) {
+            case 'KR': return 'manhwa';
+            case 'JP': return 'manga';
+            case 'CH': return 'manhua';
         }
     }
-    return workType;
+    
+    return 'N/A';
 };
-
 
 // Validação de URL robusta
 const validateUrl = (url) => {
@@ -247,14 +250,8 @@ const processInBatches = async (items, batchSize = SHARED_CONFIG.BATCH_SIZE, del
                 return null;
             }
 
-            let type = null;
-            if (key.startsWith('KR')) {
-                type = 'manhwa';
-            } else if (key.startsWith('JP')) {
-                type = 'manga';
-            } else if (key.startsWith('CH')) {
-                type = 'manhua';
-            }
+            // Usar o type diretamente do chapter (já vem do index.json)
+            const type = representativeChapter.type || null;
 
             const preFetchedData = {
                 title: mangaSeries.title,

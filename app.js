@@ -1,18 +1,20 @@
 import { initializeStore, store, fetchAndDisplayScanWorks } from './store.js';
-import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup, loadingManager } from './ui.js';
-import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion, saveScansListToCache, loadScansListFromCache } from './cache.js';
+import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup, loadingManager, updateFaviconBadge } from './ui.js';
+import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion, getMangaCache, getMangaCacheVersion, saveScansListToCache, loadScansListFromCache, getMetadata, setMetadata } from './cache.js';
+import { SCANS_INDEX_URL, INDEX_URL, UPDATE_CHECK_INTERVAL_MS } from './constants.js';
 
 import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
 import { errorNotificationManager } from './error-handler.js';
 import { GestureNavigationManager } from './touch-gestures.js';
 import { analytics } from './local-analytics.js';
-import { SCANS_INDEX_URL } from './constants.js';
 
-// ADICIONE ESTA LINHA NO TOPO
 import './shared-utils.js';
 
 // Sistema global de debug
 window.GIKAMURA_DEBUG = localStorage.getItem('gikamura_debug') === 'true';
+
+// Intervalo de verificação periódica
+let updateCheckInterval = null;
 
 // Helper para alternar debug
 window.toggleGikamuraDebug = () => {
@@ -407,16 +409,30 @@ function setupEventListeners() {
 
     dom.notificationsEnabledToggle.addEventListener('change', (e) => {
         store.setSettings({ notificationsEnabled: e.target.checked });
-        if (e.target.checked) handleNotificationsPermission();
+        if (e.target.checked) {
+            handleNotificationsPermission();
+            startPeriodicUpdateCheck();
+        } else {
+            stopPeriodicUpdateCheck();
+        }
     });
 
     dom.popupsEnabledToggle.addEventListener('change', (e) => {
         store.setSettings({ popupsEnabled: e.target.checked });
     });
 
+    // Controle de visibilidade: pausar/retomar verificação periódica
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             checkForUpdatesOnFocus();
+            // Retomar verificação periódica
+            const { settings } = store.getState();
+            if (settings.notificationsEnabled && !updateCheckInterval) {
+                startPeriodicUpdateCheck();
+            }
+        } else {
+            // Pausar verificação quando aba não está visível (economia de recursos)
+            stopPeriodicUpdateCheck();
         }
     });
 
@@ -512,26 +528,47 @@ async function findNewChapterUpdates(oldManga, newManga) {
 
     newManga.forEach(manga => {
         const oldVersion = oldMangaMap.get(manga.url);
-        if (!oldVersion || !manga.chapters) return;
+        
+        // Detectar obra completamente nova (não existia antes)
+        if (!oldVersion) {
+            newUpdates.push({
+                type: 'new_work',
+                manga,
+                newChapters: [],
+                timestamp: Date.now()
+            });
+            return;
+        }
+        
+        if (!manga.chapters) return;
 
+        // OTIMIZADO: Usar apenas timestamp para detectar capítulos novos/atualizados
+        // Não precisa comparar chaves - se last_updated > lastCheck, é novidade
         const newChaptersInManga = [];
         for (const chapterKey in manga.chapters) {
-            if (!oldVersion.chapters || !oldVersion.chapters[chapterKey]) {
-                const newChapter = manga.chapters[chapterKey];
-                const chapterTimestamp = parseInt(newChapter.last_updated) * 1000;
-                if (chapterTimestamp > lastCheckTimestamp) {
-                    newChaptersInManga.push({ title: newChapter.title || `Capítulo ${chapterKey}`, timestamp: chapterTimestamp });
-                }
+            const chapter = manga.chapters[chapterKey];
+            const chapterTimestamp = parseInt(chapter.last_updated) * 1000;
+            
+            // Capítulo é novo se timestamp > última verificação
+            if (chapterTimestamp > lastCheckTimestamp) {
+                newChaptersInManga.push({ 
+                    title: chapter.title || `Capítulo ${chapterKey}`, 
+                    timestamp: chapterTimestamp,
+                    key: chapterKey
+                });
             }
         }
+        
         if (newChaptersInManga.length > 0) {
             newUpdates.push({
+                type: 'new_chapters',
                 manga,
-                newChapters: newChaptersInManga.sort((a,b) => b.timestamp - a.timestamp),
+                newChapters: newChaptersInManga.sort((a, b) => b.timestamp - a.timestamp),
                 timestamp: Date.now()
             });
         }
     });
+    
     return newUpdates.sort((a, b) => b.timestamp - a.timestamp);
 }
 
@@ -596,7 +633,41 @@ async function initializeApp() {
         gestureManager = new GestureNavigationManager(store);
     }
 
-    // Worker compatível com importScripts
+    // Tentar carregar do cache primeiro
+    const cachedManga = await getMangaCache();
+    const localVersion = await getMangaCacheVersion();
+    const hasCachedData = cachedManga && cachedManga.length > 0 && localVersion;
+
+    if (hasCachedData) {
+        // Cache existe - carregar imediatamente
+        debugLog('Carregando do cache', { items: cachedManga.length, version: localVersion });
+        
+        store.setAllManga(cachedManga);
+        store.setLoading(false);
+        dom.subtitle.textContent = `${cachedManga.length} obras no catálogo`;
+        
+        // Configurar sistema de busca
+        setupIntegratedSearchSystem();
+
+        // Registrar Service Worker e permissões
+        await registerServiceWorker();
+        await handleNotificationsPermission();
+
+        // Verificar se há nova versão em background (baseado no lastUpdated do metadata)
+        checkForUpdatesInBackground();
+        
+        // Iniciar verificação periódica
+        const { settings } = store.getState();
+        if (settings.notificationsEnabled) {
+            startPeriodicUpdateCheck();
+        }
+        
+        return;
+    }
+
+    // Sem cache - carregar via Worker
+    debugLog('Sem cache, carregando via Worker');
+    
     const updateWorker = new Worker('./update-worker.js');
     
     // Timeout para Worker principal
@@ -627,51 +698,58 @@ async function initializeApp() {
                     store.addMangaToCatalog(payload);
 
                     const currentCount = store.getState().allManga.length;
-                    loadingManager.showFeedback(`${currentCount} obras carregadas`, 'info', 2000);
-                    dom.subtitle.textContent = `${currentCount} obras carregadas...`;
-
-                    // Configurar sistema integrado de busca
-                    setupIntegratedSearchSystem();
+                    // Atualizar apenas o subtitle sem toast de feedback
+                    dom.subtitle.textContent = `Carregando... ${currentCount} obras`;
                     break;
                 case 'complete':
                     clearTimeout(workerMainTimeout);
                     const { data, updated, version } = payload;
 
-                    if (data && store.getState().allManga.length === 0) {
+                    // Se recebemos dados no complete e o store está vazio, usar esses dados
+                    // (caso contrário, os batches já popularam o store)
+                    if (data && data.length > 0 && store.getState().allManga.length === 0) {
                         store.setAllManga(data);
+                    }
 
-                        // Gerenciar cache no contexto principal (Worker não tem localStorage)
-                        if (updated && version) {
-                            try {
-                                setMangaCache(data);
-                                setMangaCacheVersion(version);
-                                debugLog('Cache atualizado', { version, itemCount: data.length });
-                            } catch (cacheError) {
-                                debugLog('Erro ao salvar cache', { error: cacheError.message });
-                                errorNotificationManager.showError(
-                                    'Erro no Cache',
-                                    'Não foi possível salvar dados localmente.',
-                                    'warning',
-                                    3000
-                                );
-                            }
+                    // SEMPRE salvar no cache quando há atualização, independente de como os dados foram carregados
+                    if (updated && version) {
+                        try {
+                            const dataToCache = store.getState().allManga;
+                            await setMangaCache(dataToCache);
+                            await setMangaCacheVersion(version);
+                            debugLog('Cache atualizado', { version, itemCount: dataToCache.length });
+                        } catch (cacheError) {
+                            debugLog('Erro ao salvar cache', { error: cacheError.message });
+                            console.error('Erro ao salvar cache:', cacheError);
+                            errorNotificationManager.showError(
+                                'Erro no Cache',
+                                'Não foi possível salvar dados localmente.',
+                                'warning',
+                                3000
+                            );
                         }
                     }
 
-                    dom.subtitle.textContent = `${store.getState().allManga.length} obras no catálogo.`;
+                    const totalLoaded = store.getState().allManga.length;
+                    dom.subtitle.textContent = `${totalLoaded} obras no catálogo`;
 
                     if (updated) {
                         await setLastCheckTimestamp(Date.now().toString());
-                        showNotification("O catálogo foi atualizado com sucesso!");
-
-                    } else {
-                        loadingManager.showFeedback("Catálogo carregado do cache", 'info', 3000);
+                        // Salvar lastUpdated do catálogo para comparação futura
+                        await setMetadata('catalogLastUpdated', Date.now().toString());
+                        debugLog('Catálogo atualizado', { total: totalLoaded });
                     }
 
                     if(store.getState().isLoading) store.setLoading(false);
 
                     // Configurar sistema integrado de busca final
                     setupIntegratedSearchSystem();
+                    
+                    // Iniciar verificação periódica
+                    const { settings } = store.getState();
+                    if (settings.notificationsEnabled) {
+                        startPeriodicUpdateCheck();
+                    }
 
                     updateWorker.terminate();
                     break;
@@ -733,6 +811,145 @@ async function initializeApp() {
     
     await registerServiceWorker();
     await handleNotificationsPermission();
+}
+
+// Verificar atualizações em background comparando lastUpdated do metadata
+async function checkForUpdatesInBackground(showIndicator = true) {
+    debugLog('Verificando atualizações em background');
+    
+    try {
+        const { fetchWithTimeout } = window.SharedUtils;
+        
+        // Buscar apenas o índice para comparar (requisição leve ~50KB)
+        const response = await fetchWithTimeout(INDEX_URL, { timeout: 10000 });
+        const indexData = await response.json();
+        
+        const remoteLastUpdated = indexData.metadata?.lastUpdated;
+        const remoteVersion = indexData.metadata?.version;
+        const remoteTotalMangas = indexData.metadata?.totalMangas;
+        
+        // Obter timestamps locais
+        const localLastUpdated = parseInt(await getMetadata('catalogLastUpdated') || '0');
+        const localVersion = await getMangaCacheVersion();
+        
+        debugLog('Comparando timestamps', { 
+            remoteLastUpdated, 
+            localLastUpdated,
+            remoteVersion,
+            localVersion
+        });
+        
+        // Comparar lastUpdated - mais preciso que version
+        if (remoteLastUpdated && remoteLastUpdated > localLastUpdated) {
+            debugLog('Novidades detectadas via lastUpdated', { 
+                remote: remoteLastUpdated, 
+                local: localLastUpdated,
+                diff: remoteLastUpdated - localLastUpdated
+            });
+            
+            if (showIndicator) {
+                const currentCount = store.getState().allManga.length;
+                const newWorksCount = remoteTotalMangas ? remoteTotalMangas - currentCount : 0;
+                showUpdateAvailableIndicator(newWorksCount, remoteLastUpdated);
+            }
+            
+            return { hasUpdates: true, remoteLastUpdated, remoteTotalMangas };
+        } 
+        // Fallback: comparar versão
+        else if (remoteVersion && remoteVersion !== localVersion) {
+            debugLog('Nova versão detectada', { remote: remoteVersion, local: localVersion });
+            
+            if (showIndicator) {
+                const currentCount = store.getState().allManga.length;
+                const newWorksCount = remoteTotalMangas ? remoteTotalMangas - currentCount : 0;
+                showUpdateAvailableIndicator(newWorksCount);
+            }
+            
+            return { hasUpdates: true, remoteVersion };
+        }
+        
+        debugLog('Catálogo atualizado', { version: localVersion, lastUpdated: localLastUpdated });
+        return { hasUpdates: false };
+        
+    } catch (error) {
+        debugLog('Erro ao verificar atualizações', { error: error.message });
+        return { hasUpdates: false, error: error.message };
+    }
+}
+
+// Iniciar verificação periódica
+function startPeriodicUpdateCheck() {
+    // Limpar intervalo anterior se existir
+    if (updateCheckInterval) {
+        clearInterval(updateCheckInterval);
+    }
+    
+    debugLog('Iniciando verificação periódica', { intervalMs: UPDATE_CHECK_INTERVAL_MS });
+    
+    updateCheckInterval = setInterval(async () => {
+        const { settings } = store.getState();
+        if (!settings.notificationsEnabled) return;
+        
+        // Só verificar se a aba está visível
+        if (document.visibilityState !== 'visible') return;
+        
+        debugLog('Verificação periódica executando...');
+        const result = await checkForUpdatesInBackground(true);
+        
+        if (result.hasUpdates) {
+            // Atualizar badge do favicon
+            updateFaviconBadge(store.getState().unreadUpdates + 1);
+        }
+    }, UPDATE_CHECK_INTERVAL_MS);
+}
+
+// Parar verificação periódica
+function stopPeriodicUpdateCheck() {
+    if (updateCheckInterval) {
+        clearInterval(updateCheckInterval);
+        updateCheckInterval = null;
+        debugLog('Verificação periódica parada');
+    }
+}
+
+// Mostrar indicador visual de atualização disponível
+function showUpdateAvailableIndicator(newWorksCount = 0, remoteLastUpdated = null) {
+    // Evitar duplicatas
+    if (document.getElementById('update-indicator')) return;
+    
+    const hasNewWorks = newWorksCount > 0;
+    
+    const indicator = document.createElement('button');
+    indicator.id = 'update-indicator';
+    indicator.className = 'fixed bottom-20 right-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 animate-pulse';
+    
+    // Texto dinâmico baseado em novas obras
+    const buttonText = hasNewWorks 
+        ? `+${newWorksCount} novas obras` 
+        : 'Novidades disponíveis';
+    
+    indicator.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        <span>${buttonText}</span>
+    `;
+    indicator.onclick = async () => {
+        indicator.remove();
+        // Salvar o lastUpdated antes de recarregar
+        if (remoteLastUpdated) {
+            await setMetadata('catalogLastUpdated', remoteLastUpdated.toString());
+        }
+        window.location.reload();
+    };
+    
+    document.body.appendChild(indicator);
+    
+    // Atualizar badge do favicon
+    updateFaviconBadge(newWorksCount || 1);
+    
+    // Remover animação após 3 segundos mas manter botão
+    setTimeout(() => indicator.classList.remove('animate-pulse'), 3000);
 }
 
 document.addEventListener('DOMContentLoaded', initializeApp);

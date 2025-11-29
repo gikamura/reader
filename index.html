@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gikamura</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
     <link rel="manifest" href="manifest.json">
 
     <!-- Tailwind CDN - OK para PWA estática sem build process -->
@@ -383,7 +387,7 @@
     <button data-tab="updates" class="tab relative px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 hover:bg-neutral-700 focus:ring-2 focus:ring-blue-500" role="tab" aria-selected="false" aria-controls="main-content">
         Atualizações
         <span class="sr-only">- Notificações e configurações</span>
-        <span id="updates-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden" aria-label="Novas atualizações disponíveis"></span>
+        <span id="updates-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 px-1 flex items-center justify-center hidden animate-pulse shadow-lg" aria-label="Novas atualizações disponíveis"></span>
     </button>
 </nav>
 
@@ -437,17 +441,43 @@
             </div>
             <div id="updates-content" class="hidden" role="tabpanel" aria-labelledby="updates-tab">
                  <div class="bg-[#1a1a1a] rounded-lg p-4 mb-6 border border-neutral-800/60">
-                    <h2 class="text-xl font-bold mb-4">Configurações de Notificação</h2>
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Configurações
+                    </h2>
                     <div class="space-y-3">
-                        <label for="notifications-enabled" class="flex items-center justify-between cursor-pointer">
-                            <span class="text-gray-300">Habilitar Atualizações em Segundo Plano</span>
+                        <label for="notifications-enabled" class="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-neutral-800/50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-blue-600/20 p-2 rounded-lg">
+                                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="text-white font-medium">Verificar Atualizações</span>
+                                    <p class="text-xs text-gray-500">Verificar novas obras e capítulos automaticamente</p>
+                                </div>
+                            </div>
                             <div class="relative">
                                 <input type="checkbox" id="notifications-enabled" class="sr-only">
                                 <div class="toggle-bg block bg-neutral-700 w-11 h-6 rounded-full"></div>
                             </div>
                         </label>
-                        <label for="popups-enabled" class="flex items-center justify-between cursor-pointer">
-                            <span class="text-gray-300">Mostrar Pop-ups na Tela</span>
+                        <label for="popups-enabled" class="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-neutral-800/50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-green-600/20 p-2 rounded-lg">
+                                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="text-white font-medium">Pop-ups de Notificação</span>
+                                    <p class="text-xs text-gray-500">Mostrar alertas quando houver novidades</p>
+                                </div>
+                            </div>
                             <div class="relative">
                                 <input type="checkbox" id="popups-enabled" class="sr-only">
                                 <div class="toggle-bg block bg-neutral-700 w-11 h-6 rounded-full"></div>
@@ -456,8 +486,16 @@
                     </div>
                 </div>
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-white">Últimas Atualizações</h2>
-                    <button id="mark-all-as-read-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm hidden">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Histórico de Atualizações
+                    </h2>
+                    <button id="mark-all-as-read-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm hidden flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
                         Marcar todas como lidas
                     </button>
                 </div>
