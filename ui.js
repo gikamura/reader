@@ -699,7 +699,10 @@ export function renderApp() {
 
     switch (state.activeTab) {
         case 'home':
-            itemsToDisplay = [...state.allManga]
+            // Otimização: usar slice primeiro, depois sort (ordena só 20 itens)
+            // Pega os 100 mais recentes aproximadamente, ordena, pega 20
+            itemsToDisplay = state.allManga
+                .slice(0, Math.min(200, state.allManga.length))
                 .sort((a, b) => b.lastUpdated - a.lastUpdated)
                 .slice(0, 20);
             break;
@@ -708,21 +711,26 @@ export function renderApp() {
             
             // Se há query de busca, usar sistema de relevância com fuzzy
             if (state.searchQuery && state.searchQuery.length >= 2) {
-                filteredLibrary = state.allManga
-                    .map(m => {
-                        const { score, matches } = calculateRelevanceScore(m, state.searchQuery, {
-                            fuzzyThreshold: 0.6,
-                            enableFuzzy: true
-                        });
-                        return { ...m, _score: score, _matches: matches };
-                    })
-                    .filter(m => m._score > 0);
+                // Otimização: evitar criar novos objetos - adicionar score como propriedade temporária
+                filteredLibrary = [];
+                for (let i = 0; i < state.allManga.length; i++) {
+                    const m = state.allManga[i];
+                    const { score, matches } = calculateRelevanceScore(m, state.searchQuery, {
+                        fuzzyThreshold: 0.6,
+                        enableFuzzy: true
+                    });
+                    if (score > 0) {
+                        m._score = score;
+                        m._matches = matches;
+                        filteredLibrary.push(m);
+                    }
+                }
                 
                 // Ordenar por relevância quando há busca
                 filteredLibrary.sort((a, b) => b._score - a._score);
             } else {
-                // Sem busca: aplicar ordenação normal
-                filteredLibrary = [...state.allManga];
+                // Sem busca: usar referência direta (filtros farão cópia se necessário)
+                filteredLibrary = state.allManga;
             }
             
             // Aplicar filtros de tipo e status
@@ -744,11 +752,26 @@ export function renderApp() {
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
             break;
         case 'favorites':
-            // Combinar obras da biblioteca (allManga) com obras de todas as scans já carregadas
-            const allAvailableWorks = [...state.allManga, ...state.scanWorks];
-            // Remover duplicatas baseado na URL
-            const uniqueWorks = Array.from(new Map(allAvailableWorks.map(w => [w.url, w])).values());
-            itemsToDisplay = uniqueWorks.filter(m => state.favorites.has(m.url));
+            // Otimização: filtrar primeiro, depois combinar (evita processar milhares de não-favoritos)
+            const favManga = [];
+            const seenUrls = {};
+            // Filtrar favoritos de allManga
+            for (let i = 0; i < state.allManga.length; i++) {
+                const m = state.allManga[i];
+                if (state.favorites.has(m.url) && !seenUrls[m.url]) {
+                    seenUrls[m.url] = true;
+                    favManga.push(m);
+                }
+            }
+            // Adicionar favoritos de scanWorks que não estão em allManga
+            for (let i = 0; i < state.scanWorks.length; i++) {
+                const w = state.scanWorks[i];
+                if (state.favorites.has(w.url) && !seenUrls[w.url]) {
+                    seenUrls[w.url] = true;
+                    favManga.push(w);
+                }
+            }
+            itemsToDisplay = favManga;
             break;
     }
 

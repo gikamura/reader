@@ -36,9 +36,17 @@ export const store = {
     addMangaToCatalog(mangaArray) {
         const validManga = mangaArray.filter(m => m && !m.error);
         if (validManga.length > 0) {
-            const existingUrls = new Set(state.allManga.map(m => m.url));
-            const newManga = validManga.filter(m => !existingUrls.has(m.url));
-            state.allManga = [...state.allManga, ...newManga];
+            // Otimização: usar objeto como lookup ao invés de Set (mais rápido para grandes arrays)
+            const existingUrls = {};
+            for (let i = 0; i < state.allManga.length; i++) {
+                existingUrls[state.allManga[i].url] = true;
+            }
+            // Otimização: usar push ao invés de spread (evita criar cópia do array inteiro)
+            for (let i = 0; i < validManga.length; i++) {
+                if (!existingUrls[validManga[i].url]) {
+                    state.allManga.push(validManga[i]);
+                }
+            }
             notify();
         }
     },
@@ -215,7 +223,10 @@ export async function fetchAndDisplayScanWorks(scanUrl) {
             });
 
             const detailedWorksBatch = (await Promise.all(fetchPromises)).filter(Boolean);
-            allDetailedWorks = [...allDetailedWorks, ...detailedWorksBatch];
+            // Otimização: usar push ao invés de spread (evita copiar array inteiro a cada batch)
+            for (let j = 0; j < detailedWorksBatch.length; j++) {
+                allDetailedWorks.push(detailedWorksBatch[j]);
+            }
 
             store.setScanWorks(allDetailedWorks);
 
