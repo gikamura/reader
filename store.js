@@ -5,6 +5,9 @@ let state = getInitialState();
 
 const subscribers = new Set();
 
+// Flag para suprimir notificações durante carregamento em lote
+let suppressNotify = false;
+
 const notify = () => subscribers.forEach(callback => callback());
 
 export const store = {
@@ -22,11 +25,8 @@ export const store = {
         notify();
     },
 
-    // Flag para suprimir notificações durante carregamento em lote
-    _suppressNotify: false,
-    
     setSuppressNotify(suppress) {
-        state._suppressNotify = suppress;
+        suppressNotify = suppress;
     },
 
     addMangaToCatalog(mangaArray) {
@@ -36,7 +36,7 @@ export const store = {
             const newManga = validManga.filter(m => !existingUrls.has(m.url));
             state.allManga = [...state.allManga, ...newManga];
             // Não notificar durante carregamento em lote para evitar renders excessivos
-            if (!state._suppressNotify) {
+            if (!suppressNotify) {
                 notify();
             }
         }
