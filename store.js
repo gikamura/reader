@@ -22,13 +22,23 @@ export const store = {
         notify();
     },
 
+    // Flag para suprimir notificações durante carregamento em lote
+    _suppressNotify: false,
+    
+    setSuppressNotify(suppress) {
+        state._suppressNotify = suppress;
+    },
+
     addMangaToCatalog(mangaArray) {
         const validManga = mangaArray.filter(m => m && !m.error);
         if (validManga.length > 0) {
             const existingUrls = new Set(state.allManga.map(m => m.url));
             const newManga = validManga.filter(m => !existingUrls.has(m.url));
             state.allManga = [...state.allManga, ...newManga];
-            notify();
+            // Não notificar durante carregamento em lote para evitar renders excessivos
+            if (!state._suppressNotify) {
+                notify();
+            }
         }
     },
 

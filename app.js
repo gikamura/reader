@@ -490,81 +490,26 @@ function setupEventListeners() {
 }
 
 async function checkForUpdatesOnFocus() {
-    const { settings, allManga: oldMangaData } = store.getState();
-    if (!settings.notificationsEnabled || oldMangaData.length === 0) return;
+    const { settings, allManga } = store.getState();
+    if (!settings.notificationsEnabled || allManga.length === 0) return;
 
-    debugLog("Verificando atualizações ao focar na aba");
-    try {
-        const worker = new Worker('./update-worker.js');
-        let workerTimeout;
-
-        // Timeout para Worker que não responde
-        workerTimeout = setTimeout(() => {
-            debugLog('Worker de atualização timeout');
-            worker.terminate();
-            errorNotificationManager.showError(
-                'Timeout na Verificação',
-                'A verificação de atualizações demorou muito. Tente novamente.',
-                'warning',
-                3000
-            );
-        }, 120000); // 2 minutos
-
-        worker.postMessage({ command: 'start-fetch' });
-
-        worker.onmessage = async (event) => {
-            try {
-                clearTimeout(workerTimeout);
-
-                if (event.data.type === 'complete') {
-                    const { data: newMangaData, updated } = event.data.payload;
-                    if(updated) {
-                        const updates = await findNewChapterUpdates(oldMangaData, newMangaData);
-                        if (updates.length > 0) {
-                            store.addUpdates(updates);
-                            showConsolidatedUpdatePopup(updates);
-                            store.setAllManga(newMangaData);
-                            debugLog('Atualizações processadas', { count: updates.length });
-                        }
-                        await setLastCheckTimestamp(Date.now().toString());
-                    }
-                }
-                worker.terminate();
-            } catch (error) {
-                debugLog('Erro no processamento de updates', { error: error.message });
-                worker.terminate();
-                throw error;
-            }
-        };
-
-        worker.onerror = (error) => {
-            clearTimeout(workerTimeout);
-            debugLog('Erro no Worker de atualização', { error: error.message });
-            errorNotificationManager.showError(
-                'Erro na Verificação',
-                'Falha ao verificar atualizações. Verifique sua conexão.',
-                'error',
-                4000
-            );
-            worker.terminate();
-        };
-
-    } catch (error) {
-        console.error("Erro ao verificar atualizações em foco:", error);
-        debugLog('Erro crítico na verificação de atualizações', { error: error.message, stack: error.stack });
-
-        errorNotificationManager.showError(
-            'Erro Crítico',
-            'Falha ao inicializar verificação de atualizações.',
-            'error'
-        );
-
-        // Analytics: track error
-        analytics?.trackError(error, {
-            context: 'check_updates_on_focus',
-            severity: 'error'
+    // Verificar se já passou tempo suficiente desde a última verificação (5 minutos)
+    const lastCheck = parseInt(await getLastCheckTimestamp() || '0');
+    const now = Date.now();
+    const minInterval = 5 * 60 * 1000; // 5 minutos
+    
+    if (now - lastCheck < minInterval) {
+        debugLog('Verificação ignorada - muito recente', { 
+            lastCheck: new Date(lastCheck).toISOString(),
+            elapsed: Math.round((now - lastCheck) / 1000) + 's'
         });
+        return;
     }
+
+    debugLog("Verificando atualizações ao focar na aba (leve)");
+    
+    // Usar apenas verificação leve (só metadata, não faz fetch completo)
+    await checkForUpdatesInBackground(true);
 }
 
 async function findNewChapterUpdates(oldManga, newManga) {
@@ -663,7 +608,19 @@ async function fetchScansIndex() {
     }
 }
 
+// Flag para evitar reinicialização múltipla
+let appInitialized = false;
+
 async function initializeApp() {
+    // Proteção contra reinicialização
+    if (appInitialized) {
+        console.warn('⚠️ initializeApp chamado novamente - ignorando');
+        debugLog('initializeApp chamado novamente - ignorando');
+        return;
+    }
+    appInitialized = true;
+    console.log('🚀 initializeApp iniciando...');
+    
     const dom = getDOM();
     await initializeStore();
     store.subscribe(renderApp);
@@ -756,6 +713,9 @@ async function initializeApp() {
         );
     }, 180000); // 3 minutos
 
+    // Suprimir notificações durante carregamento em lote
+    store.setSuppressNotify(true);
+
     updateWorker.onmessage = async (event) => {
         try {
             const { type, payload } = event.data;
@@ -774,6 +734,9 @@ async function initializeApp() {
                     dom.subtitle.textContent = `Carregando... ${currentCount} obras`;
                     break;
                 case 'complete':
+                    // Reativar notificações
+                    store.setSuppressNotify(false);
+                    
                     clearTimeout(workerMainTimeout);
                     const { data, updated, version, lastUpdated } = payload;
 
@@ -829,6 +792,9 @@ async function initializeApp() {
                     updateWorker.terminate();
                     break;
                 case 'error':
+                    // Reativar notificações em caso de erro
+                    store.setSuppressNotify(false);
+                    
                     clearTimeout(workerMainTimeout);
                     debugLog('Erro do Worker principal', { error: payload });
 
@@ -850,6 +816,9 @@ async function initializeApp() {
                     break;
             }
         } catch (error) {
+            // Reativar notificações em caso de exceção
+            store.setSuppressNotify(false);
+            
             clearTimeout(workerMainTimeout);
             debugLog('Erro ao processar mensagem do Worker', { error: error.message, stack: error.stack });
 
