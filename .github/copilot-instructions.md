@@ -1,5 +1,16 @@
 # Copilot Instructions - Gikamura Reader
 
+## ⚠️ REGRA CRÍTICA DE DEPLOY
+
+**NUNCA fazer push para `origin` (gikamura/reader) sem autorização explícita do usuário.**
+
+- `rc` → `gikamura/rc.git` - Repositório de TESTE (pode fazer push livremente)
+- `origin` → `gikamura/reader.git` - PRODUÇÃO (REQUER AUTORIZAÇÃO PRÉVIA)
+
+Sempre usar `git push rc main` por padrão. Só usar `git push origin main` quando o usuário autorizar explicitamente.
+
+---
+
 ## Visão Geral
 
 PWA de leitura de mangás/manhwas/manhuas 100% frontend. Vanilla JS (ES Modules), Tailwind CSS via CDN, **sem build step**.
