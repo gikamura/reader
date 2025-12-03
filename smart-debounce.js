@@ -1,6 +1,9 @@
 /**
  * Sistema de debounce inteligente para busca
  */
+
+import { calculateRelevanceScore, similarity } from './search-engine.js';
+
 export class SmartDebounce {
     constructor(func, options = {}) {
         this.func = func;
@@ -234,39 +237,90 @@ export class SmartAutocomplete {
 
     async generateSuggestions(query) {
         const lowerQuery = query.toLowerCase();
-        const suggestions = new Set();
+        const suggestions = [];
+        const seenTexts = new Set();
 
-        // Buscar em títulos
-        this.dataSource
-            .filter(item => item.title && item.title.toLowerCase().includes(lowerQuery))
-            .slice(0, 4)
-            .forEach(item => suggestions.add({
-                text: item.title,
-                type: 'title',
-                data: item
-            }));
+        // Usar sistema de ranking de relevância
+        const scoredItems = this.dataSource
+            .map(item => {
+                const { score, matches } = calculateRelevanceScore(item, query, {
+                    fuzzyThreshold: 0.6,
+                    enableFuzzy: true
+                });
+                return { item, score, matches };
+            })
+            .filter(({ score }) => score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 6);
 
-        // Buscar em autores
-        this.dataSource
-            .filter(item => item.author && item.author.toLowerCase().includes(lowerQuery))
-            .slice(0, 2)
-            .forEach(item => suggestions.add({
-                text: item.author,
-                type: 'author',
-                data: item
-            }));
+        // Adicionar títulos com melhor score
+        scoredItems.forEach(({ item, score, matches }) => {
+            if (!seenTexts.has(item.title.toLowerCase())) {
+                const matchType = matches[0]?.type || 'contains';
+                suggestions.push({
+                    text: item.title,
+                    type: 'title',
+                    data: item,
+                    score,
+                    matchType
+                });
+                seenTexts.add(item.title.toLowerCase());
+            }
+        });
+
+        // Buscar em autores (com fuzzy)
+        const authorMatches = this.dataSource
+            .filter(item => item.author)
+            .map(item => ({
+                author: item.author,
+                similarity: similarity(lowerQuery, item.author.toLowerCase())
+            }))
+            .filter(({ author, similarity: sim }) => 
+                author.toLowerCase().includes(lowerQuery) || sim >= 0.6
+            )
+            .sort((a, b) => b.similarity - a.similarity);
+
+        const uniqueAuthors = [...new Set(authorMatches.map(m => m.author))].slice(0, 2);
+        uniqueAuthors.forEach(author => {
+            if (!seenTexts.has(author.toLowerCase())) {
+                suggestions.push({
+                    text: author,
+                    type: 'author'
+                });
+                seenTexts.add(author.toLowerCase());
+            }
+        });
 
         // Buscar em gêneros
         const genres = [...new Set(this.dataSource.flatMap(item => item.genres || []))]
             .filter(genre => genre.toLowerCase().includes(lowerQuery))
             .slice(0, 2);
 
-        genres.forEach(genre => suggestions.add({
-            text: genre,
-            type: 'genre'
-        }));
+        genres.forEach(genre => {
+            if (!seenTexts.has(genre.toLowerCase())) {
+                suggestions.push({
+                    text: genre,
+                    type: 'genre'
+                });
+                seenTexts.add(genre.toLowerCase());
+            }
+        });
 
-        return Array.from(suggestions);
+        // Sugestões de filtros inline
+        if (query.length >= 2) {
+            const filterSuggestions = [
+                { text: `type:manga ${query}`, type: 'filter', icon: '🇯🇵' },
+                { text: `type:manhwa ${query}`, type: 'filter', icon: '🇰🇷' },
+                { text: `type:manhua ${query}`, type: 'filter', icon: '🇨🇳' }
+            ];
+            
+            // Adicionar apenas se ainda não preenchemos o máximo
+            if (suggestions.length < this.options.maxSuggestions) {
+                suggestions.push(filterSuggestions[0]);
+            }
+        }
+
+        return suggestions;
     }
 
     showRecentSearches() {
@@ -315,7 +369,8 @@ export class SmartAutocomplete {
             title: '📖',
             author: '👤',
             genre: '🏷️',
-            recent: '🕒'
+            recent: '🕒',
+            filter: '⚡'
         };
         return icons[type] || '🔍';
     }
@@ -325,7 +380,8 @@ export class SmartAutocomplete {
             title: 'título',
             author: 'autor',
             genre: 'gênero',
-            recent: 'recente'
+            recent: 'recente',
+            filter: 'filtro'
         };
         return labels[type] || '';
     }

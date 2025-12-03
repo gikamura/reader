@@ -4,6 +4,7 @@ import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCa
 import { SCANS_INDEX_URL, INDEX_URL, UPDATE_CHECK_INTERVAL_MS } from './constants.js';
 
 import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
+import { searchEngine, keyboardShortcuts, parseQueryFilters } from './search-engine.js';
 import { errorNotificationManager } from './error-handler.js';
 import { GestureNavigationManager } from './touch-gestures.js';
 import { analytics } from './local-analytics.js';
@@ -48,7 +49,7 @@ const setupIntegratedSearchSystem = () => {
     }
 
     const dom = getDOM();
-    const { allManga } = store.getState();
+    const { allManga, favorites } = store.getState();
 
     if (allManga.length === 0) {
         debugLog('Dados ainda não carregados, aguardando');
@@ -71,50 +72,95 @@ const setupIntegratedSearchSystem = () => {
         dom.searchInput.parentNode.replaceChild(newInput, dom.searchInput);
         dom.searchInput = newInput;
 
-        // Configurar sistema de busca principal com debounce
+        // Registrar fonte de dados no SearchEngine
+        searchEngine.registerDataSource('library', () => {
+            const state = store.getState();
+            return state.allManga.map(m => ({
+                ...m,
+                isFavorite: state.favorites.has(m.url)
+            }));
+        });
+
+        // Configurar sistema de busca principal com debounce adaptativo
         searchDebounce = new SmartDebounce(
             (query) => {
                 debugLog('Executando busca principal', { query });
-                store.setSearchQuery(query);
+                
+                // Extrair filtros inline da query
+                const { filters, query: cleanQuery } = parseQueryFilters(query);
+                
+                // Aplicar filtros automaticamente se detectados
+                if (filters.type && filters.type !== 'all') {
+                    store.setActiveTypeFilter(filters.type);
+                }
+                if (filters.status && filters.status !== 'all') {
+                    store.setActiveStatusFilter(filters.status);
+                }
+                
+                // Atualizar query de busca (sem os filtros inline)
+                store.setSearchQuery(cleanQuery || query);
                 store.setCurrentPage(1);
 
-                // Analytics
+                // Adicionar ao histórico do SearchEngine
                 if (query.length >= 2) {
-                    analytics?.trackSearch(query, 0, 'search_input');
+                    const results = searchEngine.search(query, { sources: ['library'] });
+                    searchEngine.addToHistory(query, results.results.length);
+                    analytics?.trackSearch(query, results.results.length, 'search_input');
                 }
             },
             {
-                wait: 250,
+                wait: 150, // Mais rápido para busca instantânea
                 minLength: 0,
-                maxWait: 1000,
+                maxWait: 500,
                 immediate: false
             }
         );
 
         // Configurar autocomplete de forma isolada
         autocomplete = new SmartAutocomplete(dom.searchInput, allManga, {
-            maxSuggestions: 8,
+            maxSuggestions: 10, // Mais sugestões
             showRecentSearches: true,
             onSelect: (suggestion) => {
                 debugLog('Autocomplete selecionado', { suggestion });
-                // Trigger busca principal através do debounce
                 searchDebounce.execute(suggestion.text);
 
-                // Analytics
                 analytics?.trackUserInteraction('autocomplete', 'select', {
                     suggestionType: suggestion.type,
                     query: suggestion.text
                 });
             },
-            // Coordenar com sistema principal
             onInput: (query) => {
                 debugLog('Input no autocomplete', { query });
-                searchDebounce.execute(query);
+                
+                // Busca instantânea para queries longas
+                if (searchEngine.shouldSearchInstantly(query)) {
+                    searchDebounce.execute(query);
+                } else {
+                    searchDebounce.execute(query);
+                }
+            }
+        });
+
+        // Configurar atalhos de teclado
+        keyboardShortcuts.on('focusSearch', () => {
+            dom.searchInput.focus();
+            dom.searchInput.select();
+        });
+        
+        keyboardShortcuts.on('clearSearch', () => {
+            dom.searchInput.value = '';
+            store.setSearchQuery('');
+            store.setCurrentPage(1);
+        });
+        
+        keyboardShortcuts.on('blurSearch', () => {
+            if (autocomplete) {
+                autocomplete.hide();
             }
         });
 
         isSearchSystemInitialized = true;
-        debugLog('Sistema de busca integrado inicializado com sucesso');
+        debugLog('Sistema de busca avançado inicializado com sucesso');
 
     } catch (error) {
         console.error('Erro ao configurar sistema de busca:', error);

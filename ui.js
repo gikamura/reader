@@ -1,5 +1,6 @@
 import { store } from './store.js';
 import { ITEMS_PER_PAGE } from './constants.js';
+import { calculateRelevanceScore, similarity } from './search-engine.js';
 
 // Sistema de fallback inteligente para imagens com AllOrigins
 window.handleImageError = function(img, originalUrl) {
@@ -611,15 +612,19 @@ function renderScanWorks(state) {
         return;
     }
 
-    // Filtrar obras baseado na busca
+    // Filtrar obras baseado na busca com ranking de relevância
     let filteredWorks = state.scanWorks;
-    if (state.scanSearchQuery) {
-        const query = state.scanSearchQuery.toLowerCase();
-        filteredWorks = state.scanWorks.filter(work =>
-            work.title.toLowerCase().includes(query) ||
-            (work.author && work.author.toLowerCase().includes(query)) ||
-            (work.artist && work.artist.toLowerCase().includes(query))
-        );
+    if (state.scanSearchQuery && state.scanSearchQuery.length >= 2) {
+        filteredWorks = state.scanWorks
+            .map(work => {
+                const { score } = calculateRelevanceScore(work, state.scanSearchQuery, {
+                    fuzzyThreshold: 0.6,
+                    enableFuzzy: true
+                });
+                return { ...work, _score: score };
+            })
+            .filter(work => work._score > 0)
+            .sort((a, b) => b._score - a._score);
     }
 
     if (filteredWorks.length === 0) {
@@ -699,17 +704,41 @@ export function renderApp() {
                 .slice(0, 20);
             break;
         case 'library':
-            let filteredLibrary = state.allManga
-                .filter(m => m.title.toLowerCase().includes(state.searchQuery.toLowerCase()))
+            let filteredLibrary = state.allManga;
+            
+            // Se há query de busca, usar sistema de relevância com fuzzy
+            if (state.searchQuery && state.searchQuery.length >= 2) {
+                filteredLibrary = state.allManga
+                    .map(m => {
+                        const { score, matches } = calculateRelevanceScore(m, state.searchQuery, {
+                            fuzzyThreshold: 0.6,
+                            enableFuzzy: true
+                        });
+                        return { ...m, _score: score, _matches: matches };
+                    })
+                    .filter(m => m._score > 0);
+                
+                // Ordenar por relevância quando há busca
+                filteredLibrary.sort((a, b) => b._score - a._score);
+            } else {
+                // Sem busca: aplicar ordenação normal
+                filteredLibrary = [...state.allManga];
+            }
+            
+            // Aplicar filtros de tipo e status
+            filteredLibrary = filteredLibrary
                 .filter(m => state.activeTypeFilter === 'all' || m.type === state.activeTypeFilter)
                 .filter(m => state.activeStatusFilter === 'all' || (m.status || '').toLowerCase() === state.activeStatusFilter);
 
-            filteredLibrary.sort((a, b) => {
-                if (state.librarySortOrder === 'latest') {
-                    return b.lastUpdated - a.lastUpdated;
-                }
-                return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
-            });
+            // Ordenar apenas se não houver busca (busca usa relevância)
+            if (!state.searchQuery || state.searchQuery.length < 2) {
+                filteredLibrary.sort((a, b) => {
+                    if (state.librarySortOrder === 'latest') {
+                        return b.lastUpdated - a.lastUpdated;
+                    }
+                    return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
+                });
+            }
             
             totalPaginationItems = filteredLibrary.length;
             itemsToDisplay = filteredLibrary.slice((state.currentPage - 1) * ITEMS_PER_PAGE, state.currentPage * ITEMS_PER_PAGE);
