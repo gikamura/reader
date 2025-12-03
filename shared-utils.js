@@ -3,17 +3,13 @@
  * Este arquivo pode ser usado tanto com import quanto com importScripts
  */
 
-// Detectar se é mobile (Worker não tem window, então usa navigator)
-const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-// Configurações compartilhadas - ajustadas para mobile
+// Configurações compartilhadas
 const SHARED_CONFIG = {
     INDEX_URL: 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json',
     DEFAULT_TIMEOUT: 20000,
     WORKER_TIMEOUT: 15000,
-    // Mobile: batches menores para evitar crash de memória
-    BATCH_SIZE: isMobile ? 50 : 200,
-    BATCH_DELAY: isMobile ? 500 : 300,
+    BATCH_SIZE: 200,
+    BATCH_DELAY: 300,
     MAX_RETRIES: 2
 };
 

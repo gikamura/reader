@@ -746,42 +746,36 @@ async function initializeApp() {
                         store.setAllManga(data);
                     }
 
-                    // SEMPRE salvar no cache quando há atualização, independente de como os dados foram carregados
-                    if (updated && version) {
-                        try {
-                            const dataToCache = store.getState().allManga;
-                            await setMangaCache(dataToCache);
-                            await setMangaCacheVersion(version);
-                            debugLog('Cache atualizado', { version, itemCount: dataToCache.length });
-                        } catch (cacheError) {
-                            debugLog('Erro ao salvar cache', { error: cacheError.message });
-                            console.error('Erro ao salvar cache:', cacheError);
-                            errorNotificationManager.showError(
-                                'Erro no Cache',
-                                'Não foi possível salvar dados localmente.',
-                                'warning',
-                                3000
-                            );
-                        }
-                    }
-
                     const totalLoaded = store.getState().allManga.length;
                     dom.subtitle.textContent = `${totalLoaded} obras no catálogo`;
-
-                    if (updated) {
-                        await setLastCheckTimestamp(Date.now().toString());
-                        // Salvar lastUpdated do SERVIDOR para comparação futura (não Date.now())
-                        if (lastUpdated) {
-                            await setMetadata('catalogLastUpdated', lastUpdated.toString());
-                            debugLog('catalogLastUpdated salvo do servidor', { lastUpdated });
-                        }
-                        debugLog('Catálogo atualizado', { total: totalLoaded, lastUpdated });
-                    }
 
                     if(store.getState().isLoading) store.setLoading(false);
 
                     // Configurar sistema integrado de busca final
                     setupIntegratedSearchSystem();
+                    
+                    // Terminar worker antes de salvar cache (libera memória)
+                    updateWorker.terminate();
+                    
+                    // Salvar cache de forma ASSÍNCRONA após render para não bloquear
+                    // Isso evita crash de memória no mobile
+                    if (updated && version) {
+                        setTimeout(async () => {
+                            try {
+                                const dataToCache = store.getState().allManga;
+                                await setMangaCache(dataToCache);
+                                await setMangaCacheVersion(version);
+                                await setLastCheckTimestamp(Date.now().toString());
+                                if (lastUpdated) {
+                                    await setMetadata('catalogLastUpdated', lastUpdated.toString());
+                                }
+                                debugLog('Cache atualizado em background', { version, itemCount: dataToCache.length });
+                            } catch (cacheError) {
+                                debugLog('Erro ao salvar cache', { error: cacheError.message });
+                                console.error('Erro ao salvar cache:', cacheError);
+                            }
+                        }, 2000); // Aguardar 2s para UI estabilizar
+                    }
                     
                     // Iniciar verificação periódica
                     const { settings } = store.getState();
@@ -789,7 +783,6 @@ async function initializeApp() {
                         startPeriodicUpdateCheck();
                     }
 
-                    updateWorker.terminate();
                     break;
                 case 'error':
                     // Reativar notificações em caso de erro
