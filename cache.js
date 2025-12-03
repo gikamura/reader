@@ -92,14 +92,40 @@ export const getMangaCache = async () => {
 
 export const setMangaCache = async (data) => {
     await initDB();
-    const transaction = db.transaction(MANGA_STORE, 'readwrite');
-    const store = transaction.objectStore(MANGA_STORE);
-    store.clear();
-    data.forEach(item => store.put(item));
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = (event) => reject(event.target.error);
+    
+    // Limpar store primeiro
+    await new Promise((resolve, reject) => {
+        const clearTx = db.transaction(MANGA_STORE, 'readwrite');
+        const clearStore = clearTx.objectStore(MANGA_STORE);
+        const clearReq = clearStore.clear();
+        clearReq.onsuccess = () => resolve();
+        clearReq.onerror = (event) => reject(event.target.error);
     });
+    
+    // Salvar em lotes de 500 para evitar timeout/quota no mobile
+    const BATCH_SIZE = 500;
+    const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+    
+    for (let i = 0; i < totalBatches; i++) {
+        const start = i * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, data.length);
+        const batch = data.slice(start, end);
+        
+        await new Promise((resolve, reject) => {
+            const transaction = db.transaction(MANGA_STORE, 'readwrite');
+            const store = transaction.objectStore(MANGA_STORE);
+            
+            batch.forEach(item => store.put(item));
+            
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (event) => {
+                console.error(`Erro ao salvar lote ${i + 1}/${totalBatches}:`, event.target.error);
+                reject(event.target.error);
+            };
+        });
+    }
+    
+    console.log(`Cache salvo: ${data.length} itens em ${totalBatches} lotes`);
 };
 
 const getMetadata = async (key) => {

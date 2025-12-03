@@ -682,11 +682,16 @@ async function initializeApp() {
     // Tentar carregar do cache primeiro
     const cachedManga = await getMangaCache();
     const localVersion = await getMangaCacheVersion();
+    const localLastUpdated = await getMetadata('catalogLastUpdated');
     const hasCachedData = cachedManga && cachedManga.length > 0 && localVersion;
 
     if (hasCachedData) {
         // Cache existe - carregar imediatamente
-        debugLog('Carregando do cache', { items: cachedManga.length, version: localVersion });
+        debugLog('Carregando do cache', { 
+            items: cachedManga.length, 
+            version: localVersion,
+            lastUpdated: localLastUpdated 
+        });
         
         store.setAllManga(cachedManga);
         store.setLoading(false);
@@ -699,8 +704,29 @@ async function initializeApp() {
         await registerServiceWorker();
         await handleNotificationsPermission();
 
+        // Se não tiver catalogLastUpdated salvo, buscar do servidor e salvar
+        // Isso evita que sempre detecte "atualização disponível" na primeira vez
+        if (!localLastUpdated) {
+            debugLog('catalogLastUpdated não existe, buscando do servidor...');
+            try {
+                const { fetchWithTimeout } = window.SharedUtils;
+                const response = await fetchWithTimeout(INDEX_URL, { timeout: 10000 });
+                const indexData = await response.json();
+                const serverLastUpdated = indexData.metadata?.lastUpdated;
+                if (serverLastUpdated) {
+                    await setMetadata('catalogLastUpdated', serverLastUpdated.toString());
+                    debugLog('catalogLastUpdated inicializado', { lastUpdated: serverLastUpdated });
+                }
+            } catch (e) {
+                debugLog('Erro ao buscar lastUpdated inicial', { error: e.message });
+            }
+        }
+
         // Verificar se há nova versão em background (baseado no lastUpdated do metadata)
-        checkForUpdatesInBackground();
+        // Só verificar se já temos catalogLastUpdated para evitar falsos positivos
+        if (localLastUpdated) {
+            checkForUpdatesInBackground();
+        }
         
         // Iniciar verificação periódica
         const { settings } = store.getState();
