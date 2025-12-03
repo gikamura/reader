@@ -1,5 +1,5 @@
 // Service Worker simplificado para evitar problemas de dependências
-const CACHE_VERSION = 'gikamura-v1.4';
+const CACHE_VERSION = 'gikamura-v1.5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -14,7 +14,6 @@ const STATIC_ASSETS = [
     './api.js',
     './cache.js',
     './constants.js',
-
     './error-handler.js',
     './smart-debounce.js',
     './touch-gestures.js',
@@ -22,7 +21,10 @@ const STATIC_ASSETS = [
     './shared-utils.js',
     './input-validator.js',
     './local-analytics.js',
-    './manifest.json'
+    './update-worker.js',
+    './manifest.json',
+    './icons/icon-192.png',
+    './icons/badge-72.png'
 ];
 
 const NOTIFICATION_TAG = 'gikamura-update';

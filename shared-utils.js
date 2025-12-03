@@ -315,6 +315,7 @@ const fetchAndProcessMangaData = async (updateStatus, onBatchProcessed) => {
             data: allManga,
             updated: true,
             version: indexData.metadata?.version || Date.now(),
+            lastUpdated: indexData.metadata?.lastUpdated || Math.floor(Date.now() / 1000),
             stats: {
                 total: allMangaResults.length,
                 successful: allManga.length,

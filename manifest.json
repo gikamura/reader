@@ -1,21 +1,20 @@
 {
   "name": "Gikamura Reader",
   "short_name": "Gikamura",
+  "description": "PWA para leitura de mangás, manhwas e manhuas",
   "start_url": "/reader/",
+  "scope": "/reader/",
   "display": "standalone",
   "background_color": "#050505",
   "theme_color": "#1a1a1a",
   "orientation": "portrait-primary",
+  "categories": ["entertainment", "books"],
   "icons": [
     {
       "src": "icons/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     }
   ]
 }

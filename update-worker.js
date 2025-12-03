@@ -8,12 +8,12 @@ self.onmessage = async (event) => {
                 self.postMessage({ type: 'batch-processed', payload: batch });
             };
 
-            const { data: finalMangaData, updated, version } = await fetchAndProcessMangaData(
+            const { data: finalMangaData, updated, version, lastUpdated } = await fetchAndProcessMangaData(
                 (message) => self.postMessage({ type: 'status-update', payload: message }),
                 onBatchProcessed
             );
 
-            self.postMessage({ type: 'complete', payload: { data: finalMangaData, updated, version } });
+            self.postMessage({ type: 'complete', payload: { data: finalMangaData, updated, version, lastUpdated } });
         } catch (error) {
             self.postMessage({ type: 'error', payload: error.message });
         }

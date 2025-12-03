@@ -749,7 +749,7 @@ async function initializeApp() {
                     break;
                 case 'complete':
                     clearTimeout(workerMainTimeout);
-                    const { data, updated, version } = payload;
+                    const { data, updated, version, lastUpdated } = payload;
 
                     // Se recebemos dados no complete e o store está vazio, usar esses dados
                     // (caso contrário, os batches já popularam o store)
@@ -781,9 +781,12 @@ async function initializeApp() {
 
                     if (updated) {
                         await setLastCheckTimestamp(Date.now().toString());
-                        // Salvar lastUpdated do catálogo para comparação futura
-                        await setMetadata('catalogLastUpdated', Date.now().toString());
-                        debugLog('Catálogo atualizado', { total: totalLoaded });
+                        // Salvar lastUpdated do SERVIDOR para comparação futura (não Date.now())
+                        if (lastUpdated) {
+                            await setMetadata('catalogLastUpdated', lastUpdated.toString());
+                            debugLog('catalogLastUpdated salvo do servidor', { lastUpdated });
+                        }
+                        debugLog('Catálogo atualizado', { total: totalLoaded, lastUpdated });
                     }
 
                     if(store.getState().isLoading) store.setLoading(false);
