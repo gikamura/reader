@@ -726,11 +726,15 @@ async function initializeApp() {
                     dom.subtitle.textContent = payload;
                     break;
                 case 'batch-processed':
-                    if (store.getState().isLoading) store.setLoading(false);
+                    // NÃO chamar setLoading aqui - causa re-render a cada batch
+                    // O suppressNotify não afeta setLoading, então remove o loader manualmente
+                    if (store.getState().isLoading) {
+                        const dom = getDOM();
+                        dom.mainLoader?.classList.add('hidden');
+                    }
                     store.addMangaToCatalog(payload);
 
                     const currentCount = store.getState().allManga.length;
-                    // Atualizar apenas o subtitle sem toast de feedback
                     dom.subtitle.textContent = `Carregando... ${currentCount} obras`;
                     break;
                 case 'complete':

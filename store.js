@@ -47,7 +47,11 @@ export const store = {
                     state.allManga.push(validManga[i]);
                 }
             }
-            notify();
+            // NÃO chamar notify() aqui - suppressNotify cuida disso
+            // mas mesmo suprimido, evitar a chamada economiza CPU
+            if (!suppressNotify) {
+                notify();
+            }
         }
     },
 

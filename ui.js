@@ -707,14 +707,17 @@ export function renderApp() {
                 .slice(0, 20);
             break;
         case 'library':
-            let filteredLibrary = state.allManga;
+            let filteredLibrary;
             
             // Se há query de busca, usar sistema de relevância com fuzzy
             if (state.searchQuery && state.searchQuery.length >= 2) {
-                // Otimização: evitar criar novos objetos - adicionar score como propriedade temporária
                 filteredLibrary = [];
                 for (let i = 0; i < state.allManga.length; i++) {
                     const m = state.allManga[i];
+                    // Aplicar filtros inline para evitar criar arrays intermediários
+                    if (state.activeTypeFilter !== 'all' && m.type !== state.activeTypeFilter) continue;
+                    if (state.activeStatusFilter !== 'all' && (m.status || '').toLowerCase() !== state.activeStatusFilter) continue;
+                    
                     const { score, matches } = calculateRelevanceScore(m, state.searchQuery, {
                         fuzzyThreshold: 0.6,
                         enableFuzzy: true
@@ -725,21 +728,18 @@ export function renderApp() {
                         filteredLibrary.push(m);
                     }
                 }
-                
                 // Ordenar por relevância quando há busca
                 filteredLibrary.sort((a, b) => b._score - a._score);
             } else {
-                // Sem busca: usar referência direta (filtros farão cópia se necessário)
-                filteredLibrary = state.allManga;
-            }
-            
-            // Aplicar filtros de tipo e status
-            filteredLibrary = filteredLibrary
-                .filter(m => state.activeTypeFilter === 'all' || m.type === state.activeTypeFilter)
-                .filter(m => state.activeStatusFilter === 'all' || (m.status || '').toLowerCase() === state.activeStatusFilter);
-
-            // Ordenar apenas se não houver busca (busca usa relevância)
-            if (!state.searchQuery || state.searchQuery.length < 2) {
+                // Sem busca: filtrar e ordenar em uma passada
+                filteredLibrary = [];
+                for (let i = 0; i < state.allManga.length; i++) {
+                    const m = state.allManga[i];
+                    if (state.activeTypeFilter !== 'all' && m.type !== state.activeTypeFilter) continue;
+                    if (state.activeStatusFilter !== 'all' && (m.status || '').toLowerCase() !== state.activeStatusFilter) continue;
+                    filteredLibrary.push(m);
+                }
+                // Ordenar cópia (não modifica state.allManga)
                 filteredLibrary.sort((a, b) => {
                     if (state.librarySortOrder === 'latest') {
                         return b.lastUpdated - a.lastUpdated;
