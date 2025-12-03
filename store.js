@@ -8,7 +8,11 @@ const subscribers = new Set();
 // Flag para suprimir notificações durante carregamento em lote
 let suppressNotify = false;
 
-const notify = () => subscribers.forEach(callback => callback());
+const notify = () => {
+    // Não notificar se suprimido (durante carregamento em lote)
+    if (suppressNotify) return;
+    subscribers.forEach(callback => callback());
+};
 
 export const store = {
     subscribe(callback) {
@@ -35,10 +39,7 @@ export const store = {
             const existingUrls = new Set(state.allManga.map(m => m.url));
             const newManga = validManga.filter(m => !existingUrls.has(m.url));
             state.allManga = [...state.allManga, ...newManga];
-            // Não notificar durante carregamento em lote para evitar renders excessivos
-            if (!suppressNotify) {
-                notify();
-            }
+            notify();
         }
     },
 

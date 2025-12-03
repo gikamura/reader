@@ -3,13 +3,17 @@
  * Este arquivo pode ser usado tanto com import quanto com importScripts
  */
 
-// Configurações compartilhadas
+// Detectar se é mobile (Worker não tem window, então usa navigator)
+const isMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// Configurações compartilhadas - ajustadas para mobile
 const SHARED_CONFIG = {
     INDEX_URL: 'https://raw.githubusercontent.com/gikawork/data/refs/heads/main/hub/index.json',
     DEFAULT_TIMEOUT: 20000,
     WORKER_TIMEOUT: 15000,
-    BATCH_SIZE: 200,
-    BATCH_DELAY: 300,
+    // Mobile: batches menores para evitar crash de memória
+    BATCH_SIZE: isMobile ? 50 : 200,
+    BATCH_DELAY: isMobile ? 500 : 300,
     MAX_RETRIES: 2
 };
 
@@ -203,6 +207,8 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
         // Tentar diferentes campos para o status (algumas scans usam nomes diferentes)
         const statusValue = data.status || data.Status || data.publication_status || 'Ongoing';
 
+        // NÃO armazenar chapters completo - economiza MUITA memória
+        // Os chapters são carregados sob demanda quando o usuário abre a obra
         return {
             url: chapterUrl,
             title: sanitizeInput(preFetchedData.title || data.title) || 'N/A',
@@ -213,7 +219,7 @@ const processMangaUrl = async (chapterUrl, preFetchedData = {}) => {
             genres: Array.isArray(data.genres) ? data.genres.map(g => sanitizeInput(g)) : [],
             type: preFetchedData.type || null,
             status: sanitizeInput(statusValue),
-            chapters: data.chapters,
+            // chapters: data.chapters, // REMOVIDO - economiza ~90% da memória
             chapterCount: data.chapters ? Object.keys(data.chapters).length : null,
             lastUpdated: latestChapter ? parseInt(latestChapter.last_updated) * 1000 : 0,
             error: false
