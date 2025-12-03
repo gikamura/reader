@@ -1,6 +1,6 @@
 import { initializeStore, store, fetchAndDisplayScanWorks } from './store.js';
 import { renderApp, getDOM, showNotification, showConsolidatedUpdatePopup, loadingManager, updateFaviconBadge } from './ui.js';
-import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion, getMangaCache, getMangaCacheVersion, saveScansListToCache, loadScansListFromCache, getMetadata, setMetadata } from './cache.js';
+import { getLastCheckTimestamp, setLastCheckTimestamp, setMangaCache, setMangaCacheVersion, getMangaCache, getMangaCacheVersion, saveScansListToCache, loadScansListFromCache, getMetadata, setMetadata, clearMangaCache } from './cache.js';
 import { SCANS_INDEX_URL, INDEX_URL, UPDATE_CHECK_INTERVAL_MS } from './constants.js';
 
 import { SmartDebounce, SmartAutocomplete } from './smart-debounce.js';
@@ -877,38 +877,46 @@ async function checkForUpdatesInBackground(showIndicator = true) {
         // Obter timestamps locais
         const localLastUpdated = parseInt(await getMetadata('catalogLastUpdated') || '0');
         const localVersion = await getMangaCacheVersion();
+        const currentCount = store.getState().allManga.length;
         
         debugLog('Comparando timestamps', { 
             remoteLastUpdated, 
             localLastUpdated,
             remoteVersion,
-            localVersion
+            localVersion,
+            remoteTotalMangas,
+            currentCount
         });
         
-        // Comparar lastUpdated - mais preciso que version
-        if (remoteLastUpdated && remoteLastUpdated > localLastUpdated) {
-            debugLog('Novidades detectadas via lastUpdated', { 
+        // Calcular diferenças
+        const newWorksCount = remoteTotalMangas && currentCount > 0 
+            ? Math.max(0, remoteTotalMangas - currentCount) 
+            : 0;
+        const hasNewWorks = newWorksCount > 0;
+        const hasNewChapters = remoteLastUpdated && remoteLastUpdated > localLastUpdated;
+        
+        // Comparar lastUpdated - detecta QUALQUER mudança (obras ou capítulos)
+        if (hasNewChapters || hasNewWorks) {
+            debugLog('Novidades detectadas', { 
+                hasNewWorks,
+                newWorksCount,
+                hasNewChapters,
                 remote: remoteLastUpdated, 
-                local: localLastUpdated,
-                diff: remoteLastUpdated - localLastUpdated
+                local: localLastUpdated
             });
             
             if (showIndicator) {
-                const currentCount = store.getState().allManga.length;
-                const newWorksCount = remoteTotalMangas ? remoteTotalMangas - currentCount : 0;
-                showUpdateAvailableIndicator(newWorksCount, remoteLastUpdated);
+                showUpdateAvailableIndicator(newWorksCount, hasNewChapters, remoteLastUpdated);
             }
             
-            return { hasUpdates: true, remoteLastUpdated, remoteTotalMangas };
+            return { hasUpdates: true, remoteLastUpdated, remoteTotalMangas, newWorksCount, hasNewChapters };
         } 
         // Fallback: comparar versão
         else if (remoteVersion && remoteVersion !== localVersion) {
             debugLog('Nova versão detectada', { remote: remoteVersion, local: localVersion });
             
             if (showIndicator) {
-                const currentCount = store.getState().allManga.length;
-                const newWorksCount = remoteTotalMangas ? remoteTotalMangas - currentCount : 0;
-                showUpdateAvailableIndicator(newWorksCount);
+                showUpdateAvailableIndicator(newWorksCount, true);
             }
             
             return { hasUpdates: true, remoteVersion };
@@ -959,7 +967,7 @@ function stopPeriodicUpdateCheck() {
 }
 
 // Mostrar indicador visual de atualização disponível
-function showUpdateAvailableIndicator(newWorksCount = 0, remoteLastUpdated = null) {
+function showUpdateAvailableIndicator(newWorksCount = 0, hasNewChapters = false, remoteLastUpdated = null) {
     // Evitar duplicatas
     if (document.getElementById('update-indicator')) return;
     
@@ -967,26 +975,65 @@ function showUpdateAvailableIndicator(newWorksCount = 0, remoteLastUpdated = nul
     
     const indicator = document.createElement('button');
     indicator.id = 'update-indicator';
-    indicator.className = 'fixed bottom-20 right-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 animate-pulse';
+    indicator.className = 'fixed bottom-20 right-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-bounce border border-blue-400/30';
+    indicator.style.cssText = 'min-width: 200px; backdrop-filter: blur(8px);';
     
-    // Texto dinâmico baseado em novas obras
-    const buttonText = hasNewWorks 
-        ? `+${newWorksCount} novas obras` 
-        : 'Novidades disponíveis';
+    // Texto dinâmico baseado no tipo de atualização
+    let buttonText = 'Novidades disponíveis';
+    let subText = 'Clique para atualizar';
+    
+    if (hasNewWorks && hasNewChapters) {
+        buttonText = `+${newWorksCount} obras e capítulos`;
+        subText = 'Novas obras e capítulos disponíveis';
+    } else if (hasNewWorks) {
+        buttonText = `+${newWorksCount} novas obras`;
+        subText = 'Novas obras adicionadas';
+    } else if (hasNewChapters) {
+        buttonText = 'Novos capítulos';
+        subText = 'Capítulos atualizados disponíveis';
+    }
     
     indicator.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
         </svg>
-        <span>${buttonText}</span>
+        <div class="flex flex-col items-start">
+            <span class="font-bold text-sm">${buttonText}</span>
+            <span class="text-xs text-blue-200">${subText}</span>
+        </div>
     `;
+    
     indicator.onclick = async () => {
-        indicator.remove();
-        // Salvar o lastUpdated antes de recarregar
-        if (remoteLastUpdated) {
-            await setMetadata('catalogLastUpdated', remoteLastUpdated.toString());
+        // Mostrar loading no botão
+        indicator.innerHTML = `
+            <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Atualizando...</span>
+        `;
+        indicator.disabled = true;
+        
+        try {
+            // IMPORTANTE: Limpar cache para forçar nova busca
+            await clearMangaCache();
+            
+            // Resetar o catalogLastUpdated para forçar detecção de nova versão
+            await setMetadata('catalogLastUpdated', '0');
+            await setMetadata('cacheVersion', null);
+            
+            debugLog('Cache limpo, recarregando página...');
+            
+            // Pequeno delay para garantir que cache foi limpo
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Recarregar ignorando cache do browser
+            window.location.reload(true);
+        } catch (error) {
+            console.error('Erro ao limpar cache:', error);
+            // Fallback: recarregar mesmo assim
+            window.location.reload(true);
         }
-        window.location.reload();
     };
     
     document.body.appendChild(indicator);
@@ -994,8 +1041,14 @@ function showUpdateAvailableIndicator(newWorksCount = 0, remoteLastUpdated = nul
     // Atualizar badge do favicon
     updateFaviconBadge(newWorksCount || 1);
     
-    // Remover animação após 3 segundos mas manter botão
-    setTimeout(() => indicator.classList.remove('animate-pulse'), 3000);
+    // Mudar de bounce para pulse após 3 segundos
+    setTimeout(() => {
+        indicator.classList.remove('animate-bounce');
+        indicator.classList.add('animate-pulse');
+    }, 3000);
+    
+    // Parar animação após 10 segundos mas manter botão
+    setTimeout(() => indicator.classList.remove('animate-pulse'), 10000);
 }
 
 document.addEventListener('DOMContentLoaded', initializeApp);
