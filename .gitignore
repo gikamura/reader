@@ -24,3 +24,13 @@ Thumbs.db
 # Temporários
 tmp/
 temp/
+<<<<<<< HEAD
+scripts/
+.github
+=======
+
+# Evitar commit/push dos diretórios abaixo
+.github/copilot-instructions.md
+scripts/
+.github/copilot-instructions.md
+>>>>>>> b1286ce (ci: deploy só no main, .gitignore scripts)
